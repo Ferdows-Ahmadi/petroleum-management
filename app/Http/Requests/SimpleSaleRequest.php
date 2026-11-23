@@ -78,8 +78,8 @@ class SimpleSaleRequest extends FormRequest
     {
         return [
             'business_partner_id' => ['nullable', 'integer', Rule::exists('business_partners', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at'))],
-            'partner_name' => ['nullable', 'required_without:business_partner_id', 'string', 'max:255'],
-            'partner_phone' => ['nullable', 'string', 'max:50'],
+            'partner_name' => ['nullable', 'required_without:business_partner_id', 'string', 'max:150'],
+            'partner_phone' => ['nullable', 'string', 'max:30'],
             'sale_date' => ['required', 'date_format:Y-m-d'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:3000'],

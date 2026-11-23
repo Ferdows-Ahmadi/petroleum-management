@@ -31,14 +31,19 @@ class SystemBackupService
                 fclose($sql);
             }
             foreach (['private', 'public'] as $disk) {
-                File::copyDirectory($this->diskRoot($disk), $directory.'/files/'.$disk);
+                if (! File::copyDirectory($this->diskRoot($disk), $directory.'/files/'.$disk)) {
+                    throw new \RuntimeException("Cannot back up the configured {$disk} upload directory.");
+                }
             }
             $hashes = $this->hashes($directory);
-            File::put($directory.'/backup.json', json_encode([
+            $manifest = json_encode([
                 'format' => 1, 'created_at' => now()->toIso8601String(),
                 'database' => $config['database'], 'mysql' => DB::selectOne('SELECT VERSION() AS version')->version,
                 'files' => $hashes, 'excludes' => ['.env', 'APP_KEY', 'logs', 'framework caches'],
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            if (File::put($directory.'/backup.json', $manifest) !== strlen($manifest)) {
+                throw new \RuntimeException('Cannot write the complete backup manifest.');
+            }
 
             return $directory;
         } catch (\Throwable $error) {
@@ -85,7 +90,9 @@ class SystemBackupService
             fclose($sql);
         }
         foreach (['private', 'public'] as $disk) {
-            File::copyDirectory($directory.'/files/'.$disk, $this->diskRoot($disk));
+            if (! File::copyDirectory($directory.'/files/'.$disk, $this->diskRoot($disk))) {
+                throw new \RuntimeException("Recovery is incomplete: cannot restore the {$disk} upload directory. Retry with a fresh empty database and upload directories.");
+            }
         }
     }
 

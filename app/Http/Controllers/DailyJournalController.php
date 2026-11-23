@@ -42,16 +42,17 @@ class DailyJournalController extends Controller
         $date = $validated['date'] ?? now()->toDateString();
         $summary = $account ? $journal->forAccount($account, $date) : ($saraf ? $journal->forSaraf($saraf, $date) : null);
         if ($summary) {
-            $summary['entries'] = $summary['entries']->map(function (array $entry) use ($partnerLedger): array {
+            $movementBalances = [];
+            $summary['entries'] = $summary['entries']->map(function (array $entry) use ($partnerLedger, &$movementBalances): array {
                 $source = $entry['source'] ?? null;
                 $counterparty = $source instanceof MoneyMovement ? $source->counterparty : null;
                 $entry['remaining_balance'] = null;
 
                 if ($counterparty) {
-                    $ledgerEntry = $partnerLedger->statementFor($counterparty)
-                        ->first(fn (array $item): bool => $item['source'] instanceof MoneyMovement
-                            && $item['source']->is($source));
-                    $entry['remaining_balance'] = $ledgerEntry['running_balance'] ?? null;
+                    $movementBalances[$counterparty->id] ??= $partnerLedger->statementFor($counterparty)
+                        ->filter(fn (array $item): bool => $item['source'] instanceof MoneyMovement)
+                        ->pluck('running_balance', 'source.id');
+                    $entry['remaining_balance'] = $movementBalances[$counterparty->id]->get($source->id);
                 }
 
                 return $entry;

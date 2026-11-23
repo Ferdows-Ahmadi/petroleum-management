@@ -39,6 +39,7 @@ try {
         Copy-Item -LiteralPath (Join-Path $sourceRoot $file) -Destination (Join-Path $target $file)
     }
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'docs/COMPANY_HANDOFF_VERIFICATION_2026_10_03.md') -Destination (Join-Path $target 'docs')
+    Copy-Item -LiteralPath (Join-Path $sourceRoot 'docs/contact-import.md') -Destination (Join-Path $target 'docs')
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'handoff') -Destination $target -Recurse
     Get-ChildItem -LiteralPath (Join-Path $sourceRoot 'handoff') -File -Force | Where-Object {
         $_.Name -notin @('INSTALL_BRIDGE.php','LOCAL_SERVER.php','OPERATIONAL_COMMON.ps1','RUN_DAILY.ps1','RUN_BACKUP.ps1')
