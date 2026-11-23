@@ -1,5 +1,7 @@
 import { tradeCents, tradePreviewCents, formatCents, netWeight, scaled, formatWeight } from './decimal.js';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+import { preventImplicitEntrySubmit } from './entry-keyboard.js';
+import { initializePartyCombobox } from './party-combobox.js';
 
 const formatTrimmed = (value, maximumFractionDigits = 3) => Number(value || 0).toLocaleString('en-US', {
     minimumFractionDigits: 0,
@@ -32,93 +34,8 @@ document.querySelectorAll('[data-password-toggle]').forEach((button) => {
     });
 });
 
-document.querySelectorAll('[data-party-combobox]').forEach((combobox) => {
-    const query = combobox.querySelector('[data-party-query]');
-    const idInput = combobox.querySelector('[data-party-id]');
-    const menu = combobox.querySelector('[data-party-menu]');
-    const create = combobox.querySelector('[data-party-create]');
-    const status = combobox.querySelector('[data-party-status]');
-    const options = [...combobox.querySelectorAll('[data-party-option]')];
-    let visible = [];
-    let activeIndex = -1;
-    const normalize = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('fa');
-
-    const open = () => {
-        menu.hidden = false;
-        query.setAttribute('aria-expanded', 'true');
-        filter();
-    };
-    const close = () => {
-        menu.hidden = true;
-        query.setAttribute('aria-expanded', 'false');
-        activeIndex = -1;
-        visible.forEach((option) => option.classList.remove('active'));
-        create?.classList.remove('active');
-    };
-    const filter = () => {
-        const needle = normalize(query.value);
-        visible = options.filter((option) => {
-            const show = !needle || normalize(option.dataset.search).includes(needle);
-            option.hidden = !show;
-            return show;
-        });
-        const exact = options.some((option) => normalize(option.dataset.name) === needle);
-        if (create) {
-            create.hidden = needle.length < 2 || exact;
-            create.querySelector('span').textContent = needle.length >= 2 ? `ایجاد «${query.value.trim()}»` : '';
-        }
-        activeIndex = -1;
-    };
-    const persist = async (payload) => {
-        status.textContent = 'در حال ثبت…';
-        status.className = 'combobox-status';
-        try {
-            const response = await fetch(combobox.dataset.endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
-                body: JSON.stringify({ ...payload, role: combobox.dataset.role }),
-            });
-            const body = await response.json();
-            if (!response.ok) throw new Error(Object.values(body.errors || {}).flat()[0] || 'ثبت شخص ممکن نشد.');
-            idInput.value = body.id;
-            query.value = body.name;
-            status.textContent = 'انتخاب شد';
-            status.className = 'combobox-status success';
-            close();
-        } catch (error) {
-            idInput.value = '';
-            status.textContent = error.message;
-            status.className = 'combobox-status error';
-        }
-    };
-    const select = (option) => persist({ partner_id: option.dataset.id });
-
-    query.addEventListener('focus', open);
-    query.addEventListener('input', () => { idInput.value = ''; status.textContent = ''; open(); });
-    query.addEventListener('keydown', (event) => {
-        const candidates = [...visible, ...(create && !create.hidden ? [create] : [])];
-        if (event.key === 'Escape') return close();
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault();
-            if (menu.hidden) open();
-            candidates.forEach((item) => item.classList.remove('active'));
-            activeIndex = event.key === 'ArrowDown' ? Math.min(activeIndex + 1, candidates.length - 1) : Math.max(activeIndex - 1, 0);
-            candidates[activeIndex]?.classList.add('active');
-            candidates[activeIndex]?.scrollIntoView({ block: 'nearest' });
-        }
-        if (event.key === 'Enter' && activeIndex >= 0) {
-            event.preventDefault();
-            candidates[activeIndex]?.click();
-        }
-    });
-    options.forEach((option) => {
-        option.addEventListener('mousedown', (event) => event.preventDefault());
-        option.addEventListener('click', () => select(option));
-    });
-    create?.addEventListener('mousedown', (event) => event.preventDefault());
-    create?.addEventListener('click', () => persist({ name: query.value.trim() }));
-    query.addEventListener('blur', () => window.setTimeout(close, 150));
-});
+document.querySelector('.app-shell')?.addEventListener('keydown', preventImplicitEntrySubmit);
+document.querySelectorAll('[data-party-combobox]').forEach(initializePartyCombobox);
 
 document.querySelectorAll('form[data-confirm]').forEach((form) => {
     form.addEventListener('submit', (event) => {
