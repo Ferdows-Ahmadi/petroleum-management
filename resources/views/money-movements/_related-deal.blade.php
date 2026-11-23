@@ -1,6 +1,6 @@
 @php
     $contextDeal = $deal ?? null;
-    $selectedDealId = (int) old('deal_id', $movement?->deal_id ?? $contextDeal?->id);
+    $selectedDealId = (int) $moneyOld('deal_id', $movement?->deal_id ?? $contextDeal?->id);
 @endphp
 <div class="field" @unless($contextDeal) data-related-deal-picker data-endpoint="{{ route('money-movements.deals') }}" data-partner="{{ $counterparty?->id }}" data-has-more="{{ (int) $dealOptions->hasMorePages() }}" @endunless>
     <label for="related-deal">{{ __('finance.related_deal') }}</label>
@@ -18,5 +18,5 @@
         <button class="btnx btn-lightx" type="button" data-more-deals hidden>معامله‌های بیشتر</button>
         <span class="field-hint" role="status" data-deal-status></span>
     @endunless
-    <x-field-error name="deal_id" />
+    @if($restoreMovementInput)<x-field-error name="deal_id" />@endif
 </div>

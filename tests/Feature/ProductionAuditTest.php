@@ -11,6 +11,7 @@ use App\Models\Deal;
 use App\Models\FinancialAccount;
 use App\Models\FinancialTransaction;
 use App\Models\InventoryMovement;
+use App\Models\MoneyMovement;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Sale;
@@ -164,18 +165,29 @@ class ProductionAuditTest extends TestCase
 
     public function test_duplicate_form_post_creates_one_deal_and_rejects_changed_payload(): void
     {
+        $this->withoutVite();
         [$user, $product, $supplier, $customer] = $this->context();
         $data = array_replace($this->data($product, $supplier, $customer), ['deal_date' => '1405/07/11', 'operation_key' => (string) Str::uuid()]);
-        $first = $this->actingAs($user)->post(route('deals.store'), $data)->assertRedirect();
-        $this->post(route('deals.store'), $data)->assertRedirect($first->headers->get('Location'));
+        $this->actingAs($user)->post(route('deals.store'), $data)->assertRedirect();
+        $saved = route('deals.show', Deal::sole());
+        $this->post(route('deals.store'), $data)->assertRedirect($saved);
         $this->assertDatabaseCount('deals', 1);
         $this->assertDatabaseCount('operation_receipts', 1);
-        $this->post(route('deals.store'), array_replace($data, ['destination_rate_per_ton' => '1200']))->assertSessionHasErrors('operation_key');
+        $this->post(route('deals.store'), array_replace($data, ['destination_rate_per_ton' => '1200']))
+            ->assertRedirect($saved)->assertSessionHasErrors('operation_key')->assertSessionMissing('_old_input.operation_key');
+        $page = $this->get($saved)->assertOk()
+            ->assertSee(__('common.operation_conflict'))
+            ->assertSee(route('deals.index').'#new-deal', false)
+            ->assertDontSee('data-validation-summary', false);
+        $this->assertSame(1, substr_count($page->getContent(), 'data-operation-recovery'));
+        $this->get(route('deals.index'))->assertOk()->assertDontSee($data['operation_key']);
         $this->assertDatabaseCount('deals', 1);
+        $this->assertSame('1100.0000', Deal::sole()->destinations()->sole()->rate_per_ton);
     }
 
     public function test_duplicate_receipt_is_one_real_money_event_and_ledger_effect(): void
     {
+        $this->withoutVite();
         [$user, $product, $supplier, $customer] = $this->context();
         $deal = app(DealService::class)->create($this->data($product, $supplier, $customer), $user->id);
         $account = FinancialAccount::create(['name' => 'Audit cash', 'account_type' => 'CASH', 'currency' => 'USD', 'opening_balance' => '0', 'opening_balance_date' => now()->toDateString(), 'created_by' => $user->id, 'is_active' => true]);
@@ -183,9 +195,88 @@ class ProductionAuditTest extends TestCase
             'financial_account_id' => $account->id, 'movement_date' => '1405/07/11', 'currency' => 'USD', 'amount' => '5000',
             'confirm_now' => 1, 'operation_key' => (string) Str::uuid()];
         $this->actingAs($user)->post(route('money-movements.store'), $data)->assertRedirect();
-        $this->post(route('money-movements.store'), $data)->assertRedirect();
+        $movement = MoneyMovement::sole();
+        $saved = route('money-movements.show', $movement);
+        $this->post(route('money-movements.store'), $data)->assertRedirect($saved);
+        $this->get($saved)->assertOk()->assertSee(__('common.operation_saved'));
+        $this->post(route('money-movements.store'), array_replace($data, ['amount' => '6000']))
+            ->assertRedirect($saved)->assertSessionHasErrors('operation_key');
+        $this->get($saved)->assertOk()->assertSee(__('common.operation_conflict'))->assertSee($movement->reference_code);
+        $this->postJson(route('money-movements.store'), array_replace($data, ['amount' => '7000']))
+            ->assertUnprocessable()->assertJsonValidationErrors('operation_key');
         $this->assertDatabaseCount('money_movements', 1);
         $this->assertSame('6000.00', app(PartnerLedgerService::class)->balanceFor($customer));
+    }
+
+    public function test_validation_does_not_consume_operation_key_and_renders_one_summary(): void
+    {
+        $this->withoutVite();
+        [$user, $product, $supplier, $customer] = $this->context();
+        $data = array_replace($this->data($product, $supplier, $customer), ['deal_date' => '1405/07/11', 'operation_key' => (string) Str::uuid()]);
+
+        $this->actingAs($user)->from(route('deals.index'))
+            ->post(route('deals.store'), array_replace($data, ['source_quantity_kg' => 'invalid']))
+            ->assertRedirect(route('deals.index'))->assertSessionHasErrors('source_quantity_kg')->assertSessionHasInput('operation_key', $data['operation_key']);
+        $this->assertDatabaseCount('operation_receipts', 0);
+        $page = $this->followingRedirects()->post(route('deals.store'), array_replace($data, ['source_quantity_kg' => 'invalid']))->assertOk();
+        $this->assertSame(1, substr_count($page->getContent(), 'data-validation-summary'));
+        $page->assertSee(__('common.validation_form.deal'))->assertSee('class="field-error"', false)->assertSee($data['operation_key']);
+
+        $this->post(route('deals.store'), $data)->assertRedirect();
+        $this->assertDatabaseCount('operation_receipts', 1);
+        $this->assertDatabaseCount('deals', 1);
+    }
+
+    public function test_operation_receipt_is_scoped_to_the_submitting_user(): void
+    {
+        [$first, $product, $supplier, $customer] = $this->context();
+        $second = User::factory()->create(['role' => UserRole::GeneralManager]);
+        $data = array_replace($this->data($product, $supplier, $customer), ['deal_date' => '1405/07/11', 'operation_key' => (string) Str::uuid()]);
+
+        $this->actingAs($first)->post(route('deals.store'), $data)->assertRedirect();
+        $firstLocation = route('deals.show', Deal::sole());
+        $response = $this->actingAs($second)->post(route('deals.store'), $data)->assertRedirect();
+        $this->assertNotSame($firstLocation, $response->headers->get('Location'));
+        $this->assertDatabaseCount('operation_receipts', 2);
+        $this->assertDatabaseCount('deals', 2);
+    }
+
+    public function test_duplicate_journal_expense_opens_the_saved_record_and_offers_a_fresh_form(): void
+    {
+        $this->withoutVite();
+        [$user] = $this->context();
+        $account = FinancialAccount::create(['name' => 'Audit cash', 'account_type' => 'CASH', 'currency' => 'USD', 'opening_balance' => '100', 'opening_balance_date' => now()->toDateString(), 'created_by' => $user->id, 'is_active' => true]);
+        $data = ['financial_account_id' => $account->id, 'transaction_date' => now()->toDateString(), 'expense_category' => 'OFFICE', 'currency' => 'USD', 'amount' => '10', 'operation_key' => (string) Str::uuid()];
+
+        $this->actingAs($user)->post(route('office.finance.expenses.store'), $data)->assertRedirect(route('finance.journal'));
+        $saved = route('expenses.show', FinancialTransaction::sole());
+        $this->post(route('office.finance.expenses.store'), array_replace($data, ['amount' => '20']))
+            ->assertRedirect($saved)->assertSessionHasErrors('operation_key');
+        $fresh = route('finance.journal', ['entry' => 'expense']);
+        $this->get($saved)->assertOk()->assertSee(__('common.operation_conflict'))->assertSee($fresh.'#expense-entry', false);
+        $this->get($fresh)->assertOk()->assertSee('id="expense-entry"  open', false)->assertDontSee($data['operation_key']);
+        $this->assertDatabaseCount('financial_transactions', 1);
+        $this->assertSame('10.00', FinancialTransaction::sole()->amount);
+    }
+
+    public function test_journal_expense_validation_keeps_its_input_and_key_in_its_own_form(): void
+    {
+        $this->withoutVite();
+        [$user] = $this->context();
+        $key = (string) Str::uuid();
+        $journal = route('finance.journal');
+        $page = $this->actingAs($user)->from($journal)->followingRedirects()
+            ->post(route('office.finance.expenses.store'), [
+                'transaction_date' => now()->toDateString(), 'amount' => 'invalid-expense-amount',
+                'reference' => 'Expense only', 'operation_key' => $key,
+            ])->assertOk()->assertSee(__('common.validation_form.expense'))->assertSee('id="expense-entry"  open', false);
+
+        $html = $page->getContent();
+        $this->assertSame(1, substr_count($html, 'data-validation-summary'));
+        $this->assertSame(1, substr_count($html, 'value="'.$key.'"'));
+        $this->assertSame(1, substr_count($html, 'value="invalid-expense-amount"'));
+        $this->assertSame(1, substr_count($html, 'value="Expense only"'));
+        $this->assertDatabaseCount('operation_receipts', 0);
     }
 
     public function test_validation_preserves_solar_hijri_dates_and_other_input(): void

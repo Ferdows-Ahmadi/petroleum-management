@@ -40,6 +40,8 @@ class MoneyMovementController extends Controller
             return $movement;
         });
 
+        request()->attributes->set('operation_record_location', route('money-movements.show', $movement, false));
+
         return $this->redirectFor($request, $movement)->with('success', $request->boolean('confirm_now') ? __('finance.money_confirmed') : __('finance.money_draft_saved'));
     }
 

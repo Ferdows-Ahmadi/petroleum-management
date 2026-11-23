@@ -12,7 +12,6 @@
     <x-page-header :title="$sale->exists ? __('trades.sale.edit') : __('trades.sale.create')" :subtitle="__('trades.sale.subtitle')" />
 
     <div class="notice"><i class="bi bi-info-circle"></i><div><strong>{{ __('trades.requested_quantity_kg') }}</strong>{{ __('trades.weighing_quantity_note') }}</div></div>
-    @if($errors->any())<div class="alertx alert-errorx"><i class="bi bi-exclamation-circle"></i><div>{{ __('common.validation_summary') }}</div></div>@endif
 
     <form method="POST" action="{{ $sale->exists ? route('sales.update', $sale) : route('sales.store') }}" data-trade-form>
         @csrf

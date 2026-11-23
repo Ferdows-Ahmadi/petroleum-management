@@ -2,7 +2,6 @@
 @section('title', 'مدیریت کاربر')
 @section('content')
 <x-page-header title="مدیریت کاربر" subtitle="صلاحیت‌ها در سمت سرور اجرا می‌شوند؛ حساب را به جای حذف، غیرفعال نمایید." />
-@if($errors->any())<div class="alertx alert-errorx"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 <form class="cardx card-pad" method="POST" action="{{ $managedUser->exists ? route('users.update', $managedUser) : route('users.store') }}">
     @csrf
     @if($managedUser->exists) @method('PUT') @endif

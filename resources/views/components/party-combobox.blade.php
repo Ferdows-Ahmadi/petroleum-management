@@ -6,13 +6,18 @@
     'selectedId' => null,
     'selectedName' => null,
     'required' => false,
+    'restoreInput' => true,
 ])
 @php
     $inputId = $attributes->get('id', $name.'_query');
     $textName = str_ends_with($name, '_id') ? substr($name, 0, -3).'_name' : $name.'_name';
     $selected = $selectedId ? $parties->firstWhere('id', (int) $selectedId) : null;
-    $queryValue = old($textName, $selectedName ?? $selected?->name ?? '');
-    $idValue = old($name, $selectedId ?? $selected?->id);
+    $queryValue = $selectedName ?? $selected?->name ?? '';
+    $idValue = $selectedId ?? $selected?->id;
+    if ($restoreInput) {
+        $queryValue = old($textName, $queryValue);
+        $idValue = old($name, $idValue);
+    }
 @endphp
 <div {{ $attributes->except('id')->class(['field', 'party-combobox']) }} data-party-combobox data-role="{{ $role }}" data-endpoint="{{ route('inline-parties.store') }}">
     <label for="{{ $inputId }}">{{ $label }}</label>
@@ -28,6 +33,8 @@
         <button id="{{ $inputId }}_add" class="party-create" type="button" role="option" tabindex="-1" aria-selected="false" data-party-create hidden><span></span><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
     </div>
     <div class="combobox-status" id="{{ $inputId }}_status" aria-live="polite" data-party-status></div>
-    <x-field-error :name="$name" />
-    <x-field-error :name="$textName" />
+    @if($restoreInput)
+        <x-field-error :name="$name" />
+        <x-field-error :name="$textName" />
+    @endif
 </div>

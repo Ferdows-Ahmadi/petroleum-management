@@ -4,7 +4,6 @@
 
 @section('content')
     <x-page-header :title="$financialAccount->exists ? __('finance.account_edit') : __('finance.account_create')" :subtitle="__('finance.accounts_subtitle')" />
-    @if($errors->any())<div class="alertx alert-errorx"><i class="bi bi-exclamation-circle"></i>{{ __('common.validation_summary') }}</div>@endif
     <form method="POST" action="{{ $financialAccount->exists ? route('financial-accounts.update', $financialAccount) : route('financial-accounts.store') }}">
         @csrf @if($financialAccount->exists)@method('PUT')@endif
         <section class="cardx card-pad"><div class="form-grid">

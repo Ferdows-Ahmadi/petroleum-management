@@ -5,7 +5,6 @@
 @section('content')
     <x-page-header :title="$weighingRecord->exists ? __('weighings.edit') : __('weighings.create')" :subtitle="__('weighings.subtitle')" />
 
-    @if($errors->any())<div class="alertx alert-errorx"><i class="bi bi-exclamation-circle"></i><div>{{ __('common.validation_summary') }}</div></div>@endif
 
     <form method="POST" enctype="multipart/form-data" action="{{ $weighingRecord->exists ? route('weighings.update', $weighingRecord) : route('weighings.store') }}" data-weighing-form data-mode-scope>
         @csrf

@@ -11,7 +11,6 @@
     @endphp
     <x-page-header :title="$purchase->exists ? __('trades.purchase.edit') : __('trades.purchase.create')" :subtitle="__('trades.purchase.subtitle')" />
 
-    @if($errors->any())<div class="alertx alert-errorx"><i class="bi bi-exclamation-circle"></i><div>{{ __('common.validation_summary') }}</div></div>@endif
 
     <form method="POST" enctype="multipart/form-data" action="{{ $purchase->exists ? route('purchases.update', $purchase) : route('purchases.store') }}" data-trade-form>
         @csrf

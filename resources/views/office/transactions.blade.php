@@ -16,9 +16,6 @@
         <a class="workspace-tab {{ $tab === 'sale' ? 'active' : '' }}" href="{{ route('office.transactions', ['tab' => 'sale']) }}"><i class="bi bi-box-arrow-up"></i>{{ __('office.sale_tab') }}</a>
     </nav>
 
-    @if($errors->any())
-        <div class="alertx alert-errorx"><i class="bi bi-exclamation-circle"></i><div>{{ __('common.validation_summary') }}<ul class="alert-list">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div></div>
-    @endif
 
     @if($tab === 'purchase' && $canCreateTrade)
         <form class="office-entry-form" method="POST" enctype="multipart/form-data" action="{{ route('office.transactions.purchases.store') }}" data-office-purchase-form data-partner-form>

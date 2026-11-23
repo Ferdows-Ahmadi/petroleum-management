@@ -6,9 +6,8 @@
     @php($isExpense = $mode === 'expenses')
     <x-page-header :title="$isExpense ? __('finance.create_expense') : __('finance.create_payment')" :subtitle="$isExpense ? __('finance.expenses_subtitle') : __('finance.payments_subtitle')" />
     <div class="notice"><i class="bi bi-info-circle"></i><div><strong>{{ __('finance.amount_usd') }}</strong>{{ __('finance.exchange_rate_help') }}</div></div>
-    @if($errors->any())<div class="alertx alert-errorx"><i class="bi bi-exclamation-circle"></i>{{ __('common.validation_summary') }}</div>@endif
     <form method="POST" action="{{ $financialTransaction->exists ? route($mode.'.update', $financialTransaction) : route($mode.'.store') }}">
-        @csrf @if($financialTransaction->exists)@method('PUT')@endif
+        @csrf @if($financialTransaction->exists)@method('PUT')@elseif($isExpense)<x-operation-key />@endif
         <section class="cardx card-pad"><div class="form-grid">
             <div class="field"><label for="transaction_date">{{ __('finance.transaction_date') }}</label><input id="transaction_date" class="control ltr-value" name="transaction_date" value="{{ old('transaction_date', app(\App\Support\JalaliDate::class)->format($financialTransaction->transaction_date)) }}" placeholder="1405/05/19" required><x-field-error name="transaction_date" /></div>
             @if(!$isExpense)<div class="field"><label for="transaction_type">{{ __('finance.transaction_type') }}</label><select id="transaction_type" class="control" name="transaction_type"><option value="PAYMENT_RECEIVED" @selected(old('transaction_type', $financialTransaction->transaction_type?->value) === 'PAYMENT_RECEIVED')>{{ __('finance.transaction_types.PAYMENT_RECEIVED') }}</option><option value="PAYMENT_PAID" @selected(old('transaction_type', $financialTransaction->transaction_type?->value) === 'PAYMENT_PAID')>{{ __('finance.transaction_types.PAYMENT_PAID') }}</option></select><x-field-error name="transaction_type" /></div>@endif

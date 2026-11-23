@@ -5,7 +5,6 @@
 @section('content')
     <x-page-header :title="__('deals.title')" :subtitle="__('deals.subtitle')" />
 
-    @if($errors->any())<div class="alertx alert-errorx"><i class="bi bi-exclamation-circle"></i><div>{{ __('common.validation_summary') }}</div></div>@endif
 
     @if($canCreate && $products->isEmpty())
         <section class="cardx card-pad">

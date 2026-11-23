@@ -3,14 +3,60 @@
 @section('title', __('finance.journal'))
 
 @section('content')
-@if($errors->any())<div class="alertx alert-errorx"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
     <x-page-header :title="__('finance.journal')" :subtitle="__('finance.journal_subtitle')" />
     @if($canRecordFinance)
         <section class="cardx card-pad deal-entry-panel">
             <div class="section-head"><div><div class="section-title">ثبت رویداد روز</div><div class="card-sub">دریافت، پرداخت و مصرف از همین روزنامچه ثبت می‌شود.</div></div></div>
             <div class="money-action-grid">
-                <details @if($errors->hasAny(['movement_type','counterparty_id','amount','saraf_id','financial_account_id'])) open @endif><summary class="btnx btn-primaryx"><i class="bi bi-arrow-down-up"></i>دریافت / پرداخت</summary><form method="POST" action="{{ route('money-movements.store') }}">@csrf <x-operation-key /><input type="hidden" name="confirm_now" value="1"><input type="hidden" name="return_to" value="journal">@include('money-movements._fields', ['moneyMovement' => null, 'counterparty' => null])<div class="form-actions"><button class="btnx btn-primaryx">ثبت و تأیید</button></div></form></details>
-                <details @if($errors->any()) open @endif><summary class="btnx btn-lightx"><i class="bi bi-receipt"></i>ثبت مصرف</summary><form method="POST" action="{{ route('office.finance.expenses.store') }}" data-money-form>@csrf <x-operation-key /><div class="form-grid-3"><div class="field"><label>تاریخ</label><input class="control ltr-value" name="transaction_date" value="{{ old('transaction_date', app(\App\Support\JalaliDate::class)->format(now())) }}" required></div><div class="field"><label>حساب مالی</label><select class="control" name="financial_account_id" data-account-currency required>@foreach($accounts as $item)<option value="{{ $item->id }}" @selected((int)old('financial_account_id') === $item->id) data-currency="{{ $item->currency->value }}">{{ $item->name }} · {{ $item->currency->value }}</option>@endforeach</select></div><div class="field"><label>واحد پول</label><input type="hidden" name="currency" value="USD" data-currency-input><div class="control ltr-value" data-currency-display>USD</div></div><div class="field"><label>مبلغ</label><input class="control ltr-value" name="amount" value="{{ old('amount') }}" inputmode="decimal" required></div><div class="field"><label>نرخ تبدیل (AFN/USD)</label><input class="control ltr-value" name="exchange_rate_to_usd" value="{{ old('exchange_rate_to_usd') }}" inputmode="decimal"></div><div class="field"><label>دسته مصرف</label><select class="control" name="expense_category">@foreach($expenseCategories as $category)<option value="{{ $category->value }}" @selected(old('expense_category') === $category->value)>{{ $category->label() }}</option>@endforeach</select></div><div class="field"><label>دریافت‌کننده</label><input class="control" name="payee" value="{{ old('payee') }}"></div><div class="field"><label>مرجع</label><input class="control" name="reference" value="{{ old('reference') }}"></div><div class="field"><label>تفصیل</label><input class="control" name="description" value="{{ old('description') }}"></div></div><div class="form-actions"><button class="btnx btn-primaryx">ثبت و تأیید</button></div></form></details>
+                @php
+                    $moneyInvalid = $errors->any() && old('return_to') === 'journal';
+                    $expenseInvalid = $errors->any() && ! $moneyInvalid && array_key_exists('transaction_date', session()->getOldInput());
+                    $expenseInput = $expenseInvalid ? session()->getOldInput() : [];
+                @endphp
+                <details id="money-entry" @if(request('entry') === 'money' || $moneyInvalid) open @endif>
+                    <summary class="btnx btn-primaryx"><i class="bi bi-arrow-down-up"></i>دریافت / پرداخت</summary>
+                    <form method="POST" action="{{ route('money-movements.store') }}">
+                        @csrf
+                        <input type="hidden" name="confirm_now" value="1">
+                        <input type="hidden" name="return_to" value="journal">
+                        @include('money-movements._fields', ['moneyMovement' => null, 'counterparty' => null, 'restoreMovementInput' => $moneyInvalid])
+                        <div class="form-actions"><button class="btnx btn-primaryx">ثبت و تأیید</button></div>
+                    </form>
+                </details>
+                <details id="expense-entry" @if(request('entry') === 'expense' || $expenseInvalid) open @endif>
+                    <summary class="btnx btn-lightx"><i class="bi bi-receipt"></i>ثبت مصرف</summary>
+                    <form method="POST" action="{{ route('office.finance.expenses.store') }}" data-money-form>
+                        @csrf <x-operation-key :preserve="$expenseInvalid" />
+                        <div class="form-grid-3">
+                            <div class="field"><label for="expense_date">{{ __('finance.transaction_date') }}</label><input id="expense_date" class="control ltr-value" name="transaction_date" value="{{ $expenseInput['transaction_date'] ?? app(\App\Support\JalaliDate::class)->format(now()) }}" required>@if($expenseInvalid)<x-field-error name="transaction_date" />@endif</div>
+                            <div class="field">
+                                <label for="expense_account">{{ __('finance.financial_account') }}</label>
+                                <select id="expense_account" class="control" name="financial_account_id" data-account-currency required>
+                                    @foreach($accounts as $item)
+                                        <option value="{{ $item->id }}" @selected((int) ($expenseInput['financial_account_id'] ?? 0) === $item->id) data-currency="{{ $item->currency->value }}">{{ $item->name }} · {{ $item->currency->value }}</option>
+                                    @endforeach
+                                </select>
+                                @if($expenseInvalid)<x-field-error name="financial_account_id" />@endif
+                            </div>
+                            <div class="field"><label>{{ __('finance.currency') }}</label><input type="hidden" name="currency" value="USD" data-currency-input><div class="control ltr-value" data-currency-display>USD</div>@if($expenseInvalid)<x-field-error name="currency" />@endif</div>
+                            <div class="field"><label for="expense_amount">{{ __('finance.amount') }}</label><input id="expense_amount" class="control ltr-value" name="amount" value="{{ $expenseInput['amount'] ?? '' }}" inputmode="decimal" required>@if($expenseInvalid)<x-field-error name="amount" />@endif</div>
+                            <div class="field"><label for="expense_exchange_rate">{{ __('finance.exchange_rate') }} (AFN/USD)</label><input id="expense_exchange_rate" class="control ltr-value" name="exchange_rate_to_usd" value="{{ $expenseInput['exchange_rate_to_usd'] ?? '' }}" inputmode="decimal">@if($expenseInvalid)<x-field-error name="exchange_rate_to_usd" />@endif</div>
+                            <div class="field">
+                                <label for="expense_category">{{ __('finance.expense_category') }}</label>
+                                <select id="expense_category" class="control" name="expense_category">
+                                    @foreach($expenseCategories as $category)
+                                        <option value="{{ $category->value }}" @selected(($expenseInput['expense_category'] ?? null) === $category->value)>{{ $category->label() }}</option>
+                                    @endforeach
+                                </select>
+                                @if($expenseInvalid)<x-field-error name="expense_category" />@endif
+                            </div>
+                            <div class="field"><label for="expense_payee">{{ __('finance.payee') }}</label><input id="expense_payee" class="control" name="payee" value="{{ $expenseInput['payee'] ?? '' }}">@if($expenseInvalid)<x-field-error name="payee" />@endif</div>
+                            <div class="field"><label for="expense_reference">{{ __('common.reference') }}</label><input id="expense_reference" class="control" name="reference" value="{{ $expenseInput['reference'] ?? '' }}">@if($expenseInvalid)<x-field-error name="reference" />@endif</div>
+                            <div class="field"><label for="expense_description">{{ __('finance.description') }}</label><input id="expense_description" class="control" name="description" value="{{ $expenseInput['description'] ?? '' }}">@if($expenseInvalid)<x-field-error name="description" />@endif</div>
+                        </div>
+                        <div class="form-actions"><button class="btnx btn-primaryx">ثبت و تأیید</button></div>
+                    </form>
+                </details>
             </div>
         </section>
     @endif
