@@ -2,6 +2,7 @@ import { tradeCents, tradePreviewCents, formatCents, netWeight, scaled, formatWe
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import { preventImplicitEntrySubmit } from './entry-keyboard.js';
 import { initializePartyCombobox } from './party-combobox.js';
+import { bindMovementCounterparty } from './movement-counterparty.js';
 import './related-deal-search.js';
 
 const formatTrimmed = (value, maximumFractionDigits = 3) => Number(value || 0).toLocaleString('en-US', {
@@ -36,7 +37,12 @@ document.querySelectorAll('[data-password-toggle]').forEach((button) => {
 });
 
 document.querySelector('.app-shell')?.addEventListener('keydown', preventImplicitEntrySubmit);
-document.querySelectorAll('[data-party-combobox]').forEach(initializePartyCombobox);
+document.querySelectorAll('[data-party-combobox]').forEach((box) => {
+    const resetSelection = initializePartyCombobox(box);
+    if (box.hasAttribute('data-money-party-combo')) {
+        bindMovementCounterparty(box.closest('[data-money-movement-fields]'), box.dataset.role, resetSelection);
+    }
+});
 
 document.querySelectorAll('form[data-confirm]').forEach((form) => {
     form.addEventListener('submit', (event) => {
@@ -255,8 +261,6 @@ document.querySelectorAll('[data-money-form]').forEach((form) => {
 
 document.querySelectorAll('[data-money-movement-fields]').forEach((scope) => {
     const route = scope.querySelector('[data-money-route]');
-    const movementType = scope.querySelector('[name="movement_type"]');
-    const partyCombobox = scope.querySelector('[data-money-party-combo]');
     const sarafField = scope.querySelector('[data-saraf-field]');
     const accountField = scope.querySelector('[data-account-field]');
     const toggle = (container, enabled) => {
@@ -270,19 +274,8 @@ document.querySelectorAll('[data-money-movement-fields]').forEach((scope) => {
     const synchronize = () => {
         toggle(sarafField, route?.value === 'saraf');
         toggle(accountField, route?.value === 'account');
-        if (partyCombobox) partyCombobox.dataset.role = movementType?.value === 'SUPPLIER_PAYMENT' ? 'SUPPLIER' : 'CUSTOMER';
     };
     route?.addEventListener('change', synchronize);
-    movementType?.addEventListener('change', synchronize);
-    movementType?.addEventListener('change', () => {
-        if (!partyCombobox) return;
-        const id = movementType.value === 'SUPPLIER_PAYMENT' ? scope.dataset.supplierId : scope.dataset.customerId;
-        const option = [...partyCombobox.querySelectorAll('[data-party-option]')].find((item) => item.dataset.id === id);
-        if (option) {
-            partyCombobox.querySelector('[data-party-id]').value = id;
-            partyCombobox.querySelector('[data-party-query]').value = option.dataset.name;
-        }
-    });
     synchronize();
 });
 

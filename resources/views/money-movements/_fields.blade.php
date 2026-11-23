@@ -4,17 +4,28 @@
     $movement = $moneyMovement ?? null;
     $selectedType = $moneyOld('movement_type', $movement?->movement_type?->value ?? ($defaultType ?? 'CUSTOMER_RECEIPT'));
     $selectedRoute = $moneyOld('money_route', $movement ? ($movement->saraf_id ? 'saraf' : 'account') : ($sarafs->isNotEmpty() ? 'saraf' : 'account'));
-    $contextParty = isset($deal) && $deal ? ($selectedType === 'SUPPLIER_PAYMENT' ? $deal->sources->first()?->supplier_id : $deal->destinations->first()?->customer_id) : null;
+    [$partyRole, $contextParty] = match ($selectedType) {
+        'CUSTOMER_RECEIPT' => ['CUSTOMER', $defaultCustomerId ?? null],
+        'SUPPLIER_PAYMENT' => ['SUPPLIER', $defaultSupplierId ?? null],
+        default => ['', null],
+    };
+    if (isset($deal) && (int) $moneyOld('deal_id', $deal->id) !== $deal->id) {
+        $contextParty = null;
+    }
 @endphp
 <x-operation-key :preserve="$restoreMovementInput" />
-<div class="office-form-grid compact-grid" data-money-movement-fields @if(isset($deal) && $deal) data-customer-id="{{ $deal->destinations->first()?->customer_id }}" data-supplier-id="{{ $deal->sources->first()?->supplier_id }}" @endif>
+<div class="office-form-grid compact-grid" data-money-movement-fields @isset($deal) data-deal-id="{{ $deal->id }}" data-customer-id="{{ $defaultCustomerId }}" data-supplier-id="{{ $defaultSupplierId }}" @endisset>
     <div class="field"><label>{{ __('finance.transaction_date') }}</label><input class="control ltr-value" name="movement_date" value="{{ $moneyOld('movement_date', $movement?->movement_date ? app(\App\Support\JalaliDate::class)->format($movement->movement_date) : app(\App\Support\JalaliDate::class)->format(now())) }}" required>@if($restoreMovementInput)<x-field-error name="movement_date" />@endif</div>
     <div class="field"><label>{{ __('finance.transaction_type') }}</label><select class="control" name="movement_type" required>@foreach($movementTypes as $type)<option value="{{ $type->value }}" @selected($selectedType === $type->value)>{{ $type->label() }}</option>@endforeach</select>@if($restoreMovementInput)<x-field-error name="movement_type" />@endif</div>
     @if(isset($counterparty) && $counterparty)
-        <input type="hidden" name="counterparty_id" value="{{ $counterparty->id }}">
+        <div class="field" data-fixed-counterparty>
+            <div class="info-label">{{ __('finance.partner') }}</div>
+            <div>{{ $counterparty->name }} · <bdi>{{ $counterparty->reference_code }}</bdi></div>
+            <input type="hidden" name="counterparty_id" value="{{ $counterparty->id }}">
+        </div>
         @if($restoreMovementInput)<x-field-error name="counterparty_id" />@endif
     @else
-        <x-party-combobox name="counterparty_id" :label="__('finance.partner')" role="CUSTOMER" :parties="$partners" :selected-id="$moneyOld('counterparty_id', $movement?->counterparty_id ?? $contextParty)" :restore-input="$restoreMovementInput" data-money-party-combo />
+        <x-party-combobox name="counterparty_id" :label="__('finance.partner')" :role="$partyRole" :required="$partyRole !== ''" :parties="$partners" :selected-id="$moneyOld('counterparty_id', $movement?->counterparty_id ?? $contextParty)" :restore-input="$restoreMovementInput" data-money-party-combo />
     @endif
     @include('money-movements._related-deal')
     <div class="field"><label>{{ __('finance.money_route') }}</label><select class="control" name="money_route" data-money-route><option value="saraf" @selected($selectedRoute === 'saraf')>{{ __('finance.through_saraf') }}</option><option value="account" @selected($selectedRoute === 'account')>{{ __('finance.through_account') }}</option></select>@if($restoreMovementInput)<x-field-error name="money_route" />@endif</div>

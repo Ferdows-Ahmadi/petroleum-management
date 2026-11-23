@@ -21,8 +21,11 @@ use App\Services\PartnerLedgerService;
 use App\Services\SarafLedgerService;
 use App\Support\JalaliDate;
 use App\Support\RelatedDeals;
+use Dom\Element;
+use Dom\HTMLDocument;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Concerns\CreatesFinanceFixtures;
 use Tests\TestCase;
 
@@ -174,6 +177,86 @@ class MoneyMovementWorkflowTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => UserRole::Accountant]))->get(route('office.accounts', ['partner_id' => $party->id]))->assertOk()->assertSee(__('roles.partner.SARAF'));
     }
 
+    public function test_dual_role_profile_identifies_the_fixed_counterparty_for_both_movement_types(): void
+    {
+        $party = $this->party('Dual Role Contact', [PartnerRole::Customer, PartnerRole::Supplier]);
+        $this->actingAs(User::factory()->create(['role' => UserRole::Accountant]));
+        $fields = $this->paymentFields(route('office.accounts', ['partner_id' => $party->id]));
+
+        $fixed = $fields->querySelector('[data-fixed-counterparty]');
+        $this->assertInstanceOf(Element::class, $fixed);
+        $this->assertStringContainsString($party->name, $fixed->textContent);
+        $this->assertStringContainsString($party->reference_code, $fixed->textContent);
+        $this->assertSame((string) $party->id, $fields->querySelector('input[name=counterparty_id]')->getAttribute('value'));
+        $this->assertNull($fields->querySelector('[data-money-party-combo]'));
+        foreach (['CUSTOMER_RECEIPT', 'SUPPLIER_PAYMENT'] as $type) {
+            $this->assertNotNull($fields->querySelector("select[name=movement_type] option[value=$type]"));
+        }
+    }
+
+    public function test_editing_a_supplier_payment_draft_initially_shows_its_saved_counterparty(): void
+    {
+        [$deal, $supplier, , $saraf, $accountant] = $this->simpleContext('900.00', '1200.00');
+        $draft = $this->movement($accountant, [
+            'movement_type' => 'SUPPLIER_PAYMENT', 'counterparty_id' => $supplier->id,
+            'saraf_id' => $saraf->id, 'deal_id' => $deal->id,
+        ]);
+        $this->actingAs($accountant);
+        $fields = $this->paymentFields(route('money-movements.edit', $draft));
+
+        $this->assertSame('SUPPLIER_PAYMENT', $fields->querySelector('select[name=movement_type] option[selected]')->getAttribute('value'));
+        $this->assertSame((string) $supplier->id, $fields->querySelector('input[name=counterparty_id]')->getAttribute('value'));
+        $this->assertSame($supplier->name, $fields->querySelector('[data-money-party-combo] [data-party-query]')->getAttribute('value'));
+    }
+
+    #[TestWith([true], 'two customers and one repeated supplier')]
+    #[TestWith([false], 'two suppliers and one repeated customer')]
+    public function test_deal_money_form_defaults_each_direction_only_for_one_distinct_eligible_contact(bool $multipleCustomers): void
+    {
+        [$deal, $supplier, $customer, , $accountant] = $this->dealContext('1000', '900', '1200', 'draft');
+        $other = $this->party('Second Contact', [PartnerRole::Customer, PartnerRole::Supplier]);
+        $service = app(DealService::class);
+        $service->addSource($deal, [
+            'source_type' => 'SUPPLIER', 'supplier_id' => $multipleCustomers ? $supplier->id : $other->id,
+            'quantity_kg' => '1000', 'rate_per_ton' => '900',
+        ]);
+        $service->addDestination($deal, [
+            'destination_type' => 'CUSTOMER', 'customer_id' => $multipleCustomers ? $other->id : $customer->id,
+            'final_quantity_kg' => '1000', 'rate_per_ton' => '1200',
+        ]);
+        $service->complete($deal, $accountant->id);
+        $this->actingAs($accountant);
+
+        $customerId = $multipleCustomers ? '' : (string) $customer->id;
+        $supplierId = $multipleCustomers ? (string) $supplier->id : '';
+        foreach ([true, false] as $otherActive) {
+            $other->update(['is_active' => $otherActive]);
+            $fields = $this->paymentFields(route('deals.show', $deal));
+            $this->assertSame($customerId, $fields->getAttribute('data-customer-id') ?? '');
+            $this->assertSame($supplierId, $fields->getAttribute('data-supplier-id') ?? '');
+            $this->assertSame($customerId, $fields->querySelector('input[name=counterparty_id]')->getAttribute('value'));
+            $this->assertSame($multipleCustomers ? '' : $customer->name, $fields->querySelector('[data-money-party-combo] [data-party-query]')->getAttribute('value'));
+        }
+    }
+
+    #[TestWith([false], 'inactive customer')]
+    #[TestWith([true], 'customer role was removed')]
+    public function test_deal_money_form_skips_a_sole_ineligible_customer(bool $active): void
+    {
+        [$deal, $supplier, $customer, , $accountant] = $this->simpleContext('900.00', '1200.00');
+        if ($active) {
+            $customer->roles()->where('role', PartnerRole::Customer->value)->delete();
+        } else {
+            $customer->update(['is_active' => false]);
+        }
+        $this->actingAs($accountant);
+        $fields = $this->paymentFields(route('deals.show', $deal));
+
+        $this->assertSame('', $fields->getAttribute('data-customer-id') ?? '');
+        $this->assertSame('', $fields->querySelector('input[name=counterparty_id]')->getAttribute('value'));
+        $this->assertSame((string) $supplier->id, $fields->getAttribute('data-supplier-id'));
+    }
+
     public function test_money_routes_enforce_all_six_roles(): void
     {
         [$deal, , $customer, $saraf, $accountant] = $this->simpleContext('1000.00', '1000.00');
@@ -289,6 +372,15 @@ class MoneyMovementWorkflowTest extends TestCase
         }
     }
 
+    private function paymentFields(string $url): Element
+    {
+        $html = $this->get($url)->assertOk()->getContent();
+        $fields = HTMLDocument::createFromString($html, LIBXML_NOERROR)->querySelector('[data-money-movement-fields]');
+        $this->assertInstanceOf(Element::class, $fields);
+
+        return $fields;
+    }
+
     /** @return array{Deal, BusinessPartner, BusinessPartner, BusinessPartner, User} */
     private function canonicalContext(): array
     {
@@ -302,7 +394,7 @@ class MoneyMovementWorkflowTest extends TestCase
     }
 
     /** @return array{Deal, BusinessPartner, BusinessPartner, BusinessPartner, User} */
-    private function dealContext(string $quantity, string $purchaseRate, string $saleRate): array
+    private function dealContext(string $quantity, string $purchaseRate, string $saleRate, string $submitAction = 'complete'): array
     {
         $user = User::factory()->create(['role' => UserRole::Accountant]);
         $supplier = $this->party('Supplier A', [PartnerRole::Supplier]);
@@ -312,7 +404,7 @@ class MoneyMovementWorkflowTest extends TestCase
             'deal_date' => '2026-08-30', 'product_id' => Product::factory()->create()->id,
             'supplier_id' => $supplier->id, 'source_quantity_kg' => $quantity, 'source_rate_per_ton' => $purchaseRate,
             'customer_id' => $customer->id, 'final_quantity_kg' => $quantity, 'destination_rate_per_ton' => $saleRate,
-            'submit_action' => 'complete',
+            'submit_action' => $submitAction,
         ], $user->id);
 
         return [$deal, $supplier, $customer, $saraf, $user];

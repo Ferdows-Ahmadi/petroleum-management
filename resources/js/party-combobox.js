@@ -194,4 +194,27 @@ export function initializePartyCombobox(box) {
         query.reportValidity();
         query.setCustomValidity('');
     });
+
+    return function resetSelection(role, suggestedId) {
+        // A request from a previous role must stay invalid even after switching back.
+        revision++;
+        pending = false;
+        close();
+        const option = suggestedId ? [...menu.querySelectorAll('[data-party-option]')].find((item) => item.dataset.id === suggestedId) : null;
+        box.dataset.role = role;
+        box.hidden = !role;
+        idInput.disabled = query.disabled = !role;
+        query.required = Boolean(role);
+        idInput.value = option?.dataset.id ?? '';
+        query.value = option?.dataset.name ?? '';
+        query.setCustomValidity('');
+        status.className = 'combobox-status';
+        if (option) {
+            status.textContent = 'از معامله انتخاب شد · ' + option.querySelector('small').textContent;
+        } else if (!role) {
+            status.textContent = '';
+        } else {
+            status.textContent = role === 'SUPPLIER' ? 'عرضه‌کننده را انتخاب کنید.' : 'مشتری را انتخاب کنید.';
+        }
+    };
 }
