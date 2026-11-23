@@ -52,8 +52,9 @@ function Get-SystemSettings {
     return $settings
 }
 
-function New-CompanyShortcuts([switch]$CheckOnly) {
-    $desktop = [Environment]::GetFolderPath('Desktop')
+function New-CompanyShortcuts([string]$Desktop = [Environment]::GetFolderPath('Desktop'), [switch]$CheckOnly) {
+    if (!(Test-Path -LiteralPath $Desktop -PathType Container)) { throw 'The shortcut folder does not exist.' }
+    $Desktop = (Resolve-Path -LiteralPath $Desktop).ProviderPath
     if (!('PetroleumDesktopShortcut' -as [type])) {
         Add-Type -TypeDefinition @'
 using System;
