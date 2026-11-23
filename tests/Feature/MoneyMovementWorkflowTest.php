@@ -228,14 +228,18 @@ class MoneyMovementWorkflowTest extends TestCase
         [$deal, , $customer, $saraf, $accountant] = $this->simpleContext('900.00', '1200.00');
         $this->actingAs($accountant)->get(route('deals.show', $deal))->assertOk()
             ->assertSee('value="'.$deal->id.'" selected>'.RelatedDeals::label($deal).'</option>', false);
-        $this->withSession(['_old_input' => ['deal_id' => '']])->get(route('deals.show', $deal))
-            ->assertOk()->assertDontSee('value="'.$deal->id.'" selected>'.RelatedDeals::label($deal).'</option>', false);
         $this->post(route('money-movements.store'), [
             'movement_type' => 'CUSTOMER_RECEIPT', 'movement_date' => '2026-08-30', 'amount' => '20',
             'money_route' => 'saraf', 'saraf_id' => $saraf->id, 'counterparty_id' => $customer->id,
             'currency' => 'USD', 'deal_id' => '', 'return_to' => 'deal',
         ])->assertRedirect(route('money-movements.show', MoneyMovement::sole()));
         $this->assertNull(MoneyMovement::sole()->deal_id);
+
+        $detail = route('deals.show', $deal);
+        $response = $this->from($detail)->followingRedirects()->post(route('money-movements.store'), [
+            'movement_type' => 'CUSTOMER_RECEIPT', 'return_to' => 'deal', 'deal_id' => '', 'amount' => 'invalid',
+        ])->assertOk()->assertSee(__('common.validation_form.money'));
+        $response->assertDontSee('value="'.$deal->id.'" selected>'.RelatedDeals::label($deal).'</option>', false);
     }
 
     public function test_related_deal_search_has_the_same_role_boundary_as_recording_money(): void
