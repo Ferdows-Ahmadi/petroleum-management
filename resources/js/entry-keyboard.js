@@ -1,5 +1,5 @@
 const implicitSubmitTypes = new Set([
-    'text', 'search', 'number', 'email', 'tel', 'url', 'password',
+    'text', 'radio', 'search', 'number', 'email', 'tel', 'url', 'password',
     'date', 'time', 'month', 'week', 'datetime-local',
 ]);
 

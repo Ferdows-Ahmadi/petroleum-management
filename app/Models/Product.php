@@ -20,6 +20,14 @@ class Product extends Model
         return ['is_active' => 'boolean'];
     }
 
+    public function isQuickFuel(): bool
+    {
+        $name = str_replace('ي', 'ی', mb_strtolower(trim($this->name)));
+
+        return in_array(strtoupper(trim((string) $this->code)), ['DSL', 'PTR'], true)
+            || in_array($name, ['دیزل', 'پترول', 'پطرول', 'diesel', 'petrol', 'gasoline'], true);
+    }
+
     /** @return HasMany<InventoryMovement, $this> */
     public function inventoryMovements(): HasMany
     {

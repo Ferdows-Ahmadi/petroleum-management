@@ -292,3 +292,13 @@ button, a, input, select, textarea, summary { outline-color: var(--primary); }
     .print-header img { width: 82px; height: auto; }
 }
 .print-header { display: none; }
+
+.fuel-shortcuts { display: flex; flex-wrap: wrap; gap: 6px; margin-block-end: 6px; }
+.fuel-shortcuts [aria-pressed="true"] { color: white; background: var(--primary); border-color: var(--primary); }
+.deal-notes { grid-column: 1 / -1; }
+.deal-notes textarea { resize: vertical; min-height: 3.5rem; }
+.deal-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.deal-route { margin: 12px 0 0; padding: 0; border: 0; min-width: 0; }
+.deal-route legend { font-size: 12px; font-weight: 650; }
+.deal-route label { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; margin-inline-end: 12px; cursor: pointer; }
+.deal-route input { accent-color: var(--primary); }
