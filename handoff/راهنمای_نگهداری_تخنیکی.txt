@@ -38,12 +38,12 @@ Tests/Fixtures/DemoSeeder فقط معلومات ساختگی آزمون را م�
 
 ساخت بسته:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-company-release.ps1
-این فرمان release تولیدی قبلی را در مسیر معین خود بازسازی می‌کند. آن را روی بسته شرکت که معلومات واقعی/تنظیمات گرفته اجرا نکنید.
+این فرمان از commit فعلی در مسیر جدا بسته ZIP می‌سازد. برای هر ساخت دوباره، با -OutputDirectory فولدر خروجی تازه انتخاب کنید.
 پس از آزمون کپی جدا، commit/tag و ساخت از commit دقیق:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-company-release.ps1 -Commit نام_commit
-vendor و public/build باید با lock/source همان commit ساخته شده باشند.
+ابزار ساخت وابستگی‌های PHP را از composer.lock و فایل‌های رابط را با npm ci از package-lock.json در کپی تازه همان commit می‌سازد.
 فایل‌های خصوصی، .env، .git، node_modules، دیتابیس، logs، cacheهای نصب و اسناد بارگذاری‌شده به بسته منتقل نمی‌شوند.
-SOURCE_FILES.sha256.txt امکان تطبیق سورس بسته را فراهم می‌کند.
+BUILD.json نسخه سورس، ابزارها و هش فایل‌های قفل را مشخص می‌کند. SOURCE_FILES.sha256.txt هش تمام فایل‌های دیگر داخل بسته، از جمله vendor و public/build، را ثبت می‌کند.
 SHA-256 ZIP در manifest جدا از ZIP قرار می‌گیرد؛ فایل ZIP نمی‌تواند checksum نهایی خودش را در داخل خود نگه دارد.
 
 پشتیبان/بازیابی از mysql/mysqldump با رمز فقط در محیط پروسه فرزند استفاده می‌کند. dump با single-transaction بدون tablespaces/GTID/trigger بیرونی ساخته می‌شود. برنامه جدول InnoDB و trigger/routine سفارشی ندارد. افزودن trigger/routine یا دیتابیس دیگر به بازبینی پشتیبان نیاز دارد.
