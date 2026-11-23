@@ -191,10 +191,12 @@ button, a, input, select, textarea, summary { outline-color: var(--primary); }
 .money-action-grid details > summary { list-style: none; }
 .money-action-grid form { margin-top: 10px; padding: 12px; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 7px; }
 .party-combobox { position: relative; }
-.party-combobox-menu { position: absolute; z-index: 50; top: calc(100% + 5px); right: 0; left: 0; max-height: 238px; overflow-y: auto; padding: 5px; background: #fff; border: 1px solid var(--border); border-radius: 7px; box-shadow: 0 12px 28px rgba(23,36,43,.14); }
+.party-combobox-menu { position: fixed; inset: auto; z-index: 1060; margin: 0; overflow-y: auto; overscroll-behavior: contain; padding: 5px; background: #fff; border: 1px solid var(--border); border-radius: 7px; box-shadow: 0 12px 28px rgba(23,36,43,.14); }
 .party-option, .party-create { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 9px; padding: 9px 10px; color: var(--ink); background: transparent; border: 0; border-radius: 5px; text-align: right; cursor: pointer; }
 .party-option:hover, .party-option.active, .party-create:hover, .party-create.active { background: var(--primary-soft); color: var(--primary-dark); }
-.party-option small { color: var(--muted); direction: ltr; }
+.party-option span, .party-option small { overflow-wrap: anywhere; }
+.party-option small { color: var(--muted); direction: ltr; unicode-bidi: isolate; }
+.party-empty { padding: 9px 10px; color: var(--muted); }
 .party-create { color: var(--primary); font-weight: 700; border-top: 1px solid var(--border); }
 .combobox-status { min-height: 17px; margin-top: 3px; color: var(--muted); font-size: 10px; }
 .combobox-status.success { color: var(--success); }

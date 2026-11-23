@@ -5,7 +5,6 @@
 @section('content')
     <x-page-header :title="$weighingRecord->exists ? __('weighings.edit') : __('weighings.create')" :subtitle="__('weighings.subtitle')" />
 
-    @if($errors->any())<div class="alertx alert-errorx"><i class="bi bi-exclamation-circle"></i><div>{{ __('common.validation_summary') }}</div></div>@endif
 
     <form method="POST" enctype="multipart/form-data" action="{{ $weighingRecord->exists ? route('weighings.update', $weighingRecord) : route('weighings.store') }}" data-weighing-form data-mode-scope>
         @csrf
@@ -19,7 +18,7 @@
                             <select id="sale_item_id" class="control" name="sale_item_id" required @disabled($weighingRecord->exists)>
                                 <option value="">—</option>
                                 @foreach($saleItems as $item)
-                                    <option value="{{ $item->id }}" @selected((string) old('sale_item_id', $selectedSaleItemId) === (string) $item->id)>{{ $item->sale->reference_code }} · {{ $item->sale->customer->name }} · {{ $item->product->name }} · {{ $item->warehouse->name }}</option>
+                                    <option value="{{ $item->id }}" @selected((string) old('sale_item_id', $selectedSaleItemId) === (string) $item->id)>{{ $item->sale->customer->name }} · {{ $item->product->name }} · {{ $item->warehouse->name }} · {{ $item->sale->reference_code }}</option>
                                 @endforeach
                             </select>
                             <x-field-error name="sale_item_id" />

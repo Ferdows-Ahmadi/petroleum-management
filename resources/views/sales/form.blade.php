@@ -12,7 +12,6 @@
     <x-page-header :title="$sale->exists ? __('trades.sale.edit') : __('trades.sale.create')" :subtitle="__('trades.sale.subtitle')" />
 
     <div class="notice"><i class="bi bi-info-circle"></i><div><strong>{{ __('trades.requested_quantity_kg') }}</strong>{{ __('trades.weighing_quantity_note') }}</div></div>
-    @if($errors->any())<div class="alertx alert-errorx"><i class="bi bi-exclamation-circle"></i><div>{{ __('common.validation_summary') }}</div></div>@endif
 
     <form method="POST" action="{{ $sale->exists ? route('sales.update', $sale) : route('sales.store') }}" data-trade-form>
         @csrf
@@ -22,7 +21,7 @@
                 <section class="cardx card-pad">
                     <div class="form-grid">
                         <div class="field"><label for="sale_date">{{ __('trades.sale.date') }}</label><input id="sale_date" class="control ltr-value" name="sale_date" value="{{ old('sale_date', app(\App\Support\JalaliDate::class)->format($sale->sale_date)) }}" placeholder="1405/05/19" required><x-field-error name="sale_date" /><div class="field-hint">{{ __('trades.date_format_note') }}</div></div>
-                        <div class="field"><label for="business_partner_id">{{ __('trades.sale.customer') }}</label><select id="business_partner_id" class="control" name="business_partner_id" required><option value="">—</option>@foreach($partners as $partner)<option value="{{ $partner->id }}" @selected((string) old('business_partner_id', $sale->business_partner_id) === (string) $partner->id)>{{ $partner->name }}</option>@endforeach</select><x-field-error name="business_partner_id" /></div>
+                        <div class="field"><label for="business_partner_id">{{ __('trades.sale.customer') }}</label><select id="business_partner_id" class="control" name="business_partner_id" required><option value="">—</option>@foreach($partners as $partner)<option value="{{ $partner->id }}" @selected((string) old('business_partner_id', $sale->business_partner_id) === (string) $partner->id)>{{ $partner->name }} · {{ $partner->reference_code }}</option>@endforeach</select><x-field-error name="business_partner_id" /></div>
                         <div class="field"><label for="reference_number">{{ __('trades.reference_number') }}</label><input id="reference_number" class="control" name="reference_number" value="{{ old('reference_number', $sale->reference_number) }}" maxlength="100"><x-field-error name="reference_number" /></div>
                         <div class="field"><label for="currency">{{ __('trades.currency') }}</label><select id="currency" class="control" name="currency" data-trade-currency>@foreach($currencies as $currency)<option value="{{ $currency->value }}" @selected($selectedCurrency === $currency->value)>{{ $currency->value }}</option>@endforeach</select><x-field-error name="currency" /></div>
                         <div class="field span-2"><label for="notes">{{ __('common.notes') }}</label><textarea id="notes" class="control textarea" name="notes">{{ old('notes', $sale->notes) }}</textarea><x-field-error name="notes" /></div>

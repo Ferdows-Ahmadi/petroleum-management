@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\FinancialTransactionType;
 use App\Enums\UserRole;
 use App\Http\Requests\ExpenseRequest;
+use App\Models\FinancialTransaction;
 use App\Services\CapitalBalanceService;
 use App\Services\DailyJournalService;
 use App\Services\FinancialAccountBalanceService;
@@ -35,10 +36,14 @@ class OfficeFinanceController extends Controller
 
     public function storeExpense(ExpenseRequest $request, FinancialTransactionService $service): RedirectResponse
     {
-        DB::transaction(function () use ($request, $service): void {
+        $transaction = DB::transaction(function () use ($request, $service): FinancialTransaction {
             $transaction = $service->create($request->validated(), FinancialTransactionType::Expense, $request->user()->id);
             $service->confirm($transaction, $request->user()->id);
+
+            return $transaction;
         });
+
+        request()->attributes->set('operation_record_location', route('expenses.show', $transaction, false));
 
         return redirect()->route('finance.journal')->with('success', __('office.expense_recorded'));
     }

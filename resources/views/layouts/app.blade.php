@@ -9,10 +9,11 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
+    <a class="visually-hidden-focusable btnx btn-lightx position-fixed top-0 start-0" style="z-index: 1050" href="#main-content">رفتن به محتوای اصلی</a>
     <div class="app-shell">
         @include('partials.sidebar')
         @include('partials.topbar')
-        <main class="main">
+        <main class="main" id="main-content" tabindex="-1">
             @include('partials.flash')
             @yield('content')
         </main>

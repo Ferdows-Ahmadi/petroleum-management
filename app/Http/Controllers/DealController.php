@@ -27,6 +27,7 @@ use App\Services\WeighingService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -121,6 +122,12 @@ class DealController extends Controller
         $warehouses = ($canEditLines || $canViewSettlement) ? Warehouse::query()->where('is_active', true)->orderBy('name')->get() : collect();
         $payees = $canRecordCommercial ? BusinessPartner::query()->where('is_active', true)->orderBy('name')->get() : collect();
         $partners = $canRecordMoney ? BusinessPartner::query()->where('is_active', true)->with('roles')->orderBy('name')->get() : collect();
+        $defaultCustomerId = $defaultSupplierId = null;
+        if ($canRecordMoney && $deal->status === DealStatus::Completed) {
+            $activePartners = $partners->keyBy('id');
+            $defaultCustomerId = $this->soleCounterpartyId($deal->destinations->pluck('customer_id'), $activePartners, PartnerRole::Customer);
+            $defaultSupplierId = $this->soleCounterpartyId($deal->sources->pluck('supplier_id'), $activePartners, PartnerRole::Supplier);
+        }
         $paidExpenses = $canRecordCommercial ? FinancialTransaction::query()
             ->where('transaction_type', FinancialTransactionType::Expense->value)
             ->where('status', FinancialTransactionStatus::Confirmed->value)
@@ -129,7 +136,20 @@ class DealController extends Controller
         return view('deals.show', compact(
             'deal', 'finance', 'settlement', 'canViewMoney', 'canRecordMoney', 'canViewSettlement', 'canEditLines',
             'canRecordCommercial', 'canConfirmSettlement', 'sarafs', 'accounts', 'suppliers', 'customers', 'warehouses', 'payees', 'paidExpenses', 'partners',
+            'defaultCustomerId', 'defaultSupplierId',
         ));
+    }
+
+    private function soleCounterpartyId(Collection $linePartyIds, Collection $activePartners, PartnerRole $role): ?int
+    {
+        $ids = $linePartyIds->filter()->unique();
+        if ($ids->count() !== 1) {
+            return null;
+        }
+
+        $party = $activePartners->get($ids->first());
+
+        return $party?->roles->contains('role', $role) ? $party->id : null;
     }
 
     public function edit(Request $request, Deal $deal): View

@@ -2,21 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\DealStatus;
 use App\Enums\PartnerRole;
 use App\Enums\UserRole;
 use App\Models\BusinessPartner;
-use App\Models\Deal;
 use App\Models\FinancialAccount;
 use App\Services\PartnerLedgerService;
 use App\Services\SarafLedgerService;
+use App\Support\RelatedDeals;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class OfficeAccountController extends Controller
 {
-    public function index(Request $request, PartnerLedgerService $ledger, SarafLedgerService $sarafLedger): View
+    public function index(Request $request, PartnerLedgerService $ledger, SarafLedgerService $sarafLedger, RelatedDeals $deals): View
     {
         $canViewMoneyDetails = $request->user()->hasAnyRole(UserRole::GeneralManager->value, UserRole::Accountant->value);
         $roleFilter = in_array($request->input('role'), array_column(PartnerRole::cases(), 'value'), true) ? $request->input('role') : null;
@@ -31,7 +30,8 @@ class OfficeAccountController extends Controller
             })
             ->orderBy('name')->get();
         $selected = $request->integer('partner_id') ? $partners->firstWhere('id', $request->integer('partner_id')) : null;
-        $partnerRows = $partners->map(function (BusinessPartner $partner) use ($canViewMoneyDetails, $ledger): array {
+        $selectedStatement = $selected && $canViewMoneyDetails ? $ledger->statementFor($selected) : collect();
+        $partnerRows = $selected ? collect() : $partners->map(function (BusinessPartner $partner) use ($canViewMoneyDetails, $ledger): array {
             $statement = $canViewMoneyDetails ? $ledger->statementFor($partner) : collect();
 
             return ['partner' => $partner, 'balance' => $statement->last()['running_balance'] ?? '0.00', 'last_activity' => $statement->last()['date'] ?? null];
@@ -41,16 +41,12 @@ class OfficeAccountController extends Controller
             'partners' => $partners,
             'partnerRows' => $partnerRows,
             'roleFilter' => $roleFilter,
+            'dealOptions' => $selected && $canViewMoneyDetails ? $deals->initial($selected->id, (int) $request->old('deal_id')) : null,
             'selectedPartner' => $selected,
-            'statement' => $selected ? $ledger->statementFor($selected) : collect(),
-            'balance' => $selected ? $ledger->balanceFor($selected) : '0.00',
+            'statement' => $selectedStatement,
+            'balance' => $selectedStatement->last()['running_balance'] ?? '0.00',
             'accounts' => FinancialAccount::query()->where('is_active', true)->orderBy('name')->get(),
             'sarafs' => BusinessPartner::query()->where('is_active', true)->withRole(PartnerRole::Saraf)->orderBy('name')->get(),
-            'deals' => $selected ? Deal::query()
-                ->where('status', DealStatus::Completed->value)
-                ->where(fn ($query) => $query->whereHas('sources', fn ($source) => $source->where('supplier_id', $selected->id))
-                    ->orWhereHas('destinations', fn ($destination) => $destination->where('customer_id', $selected->id)))
-                ->latest('deal_date')->get() : collect(),
             'sarafStatement' => $selected && $selected->roles->contains('role', PartnerRole::Saraf) ? $sarafLedger->statementFor($selected) : collect(),
             'sarafBalance' => $selected && $selected->roles->contains('role', PartnerRole::Saraf) ? $sarafLedger->balanceFor($selected) : '0.00',
             'canRecordMoney' => $request->user()->hasAnyRole(UserRole::GeneralManager->value, UserRole::Accountant->value),
