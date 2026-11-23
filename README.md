@@ -47,6 +47,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\START_SYSTEM.ps1
 
 برای برنامه‌نویس بعدی: سورس کامل، migrations، tests، lockfiles و فایل‌های اصلی رابط همراه است. راهنمای نگهداری در handoff/راهنمای_نگهداری_تخنیکی.txt قرار دارد. نسخه/commit، نتیجه بررسی‌ها و SHA-256 فایل ZIP در COMPANY_HANDOFF_MANIFEST.txt همراه تحویل ثبت می‌شود.
 
+برای واردکردن فهرست اشخاص، اپراتور نخست پیش‌نمایش را بررسی کند. [راهنمای واردکردن اشخاص و بررسی نام‌های مشابه](docs/contact-import.md)
+
 ## Build from source
 
 This repository contains the November 7, 2026 source snapshot of Naftyar, a Dari-language petroleum wholesale, inventory, and operational finance platform.
