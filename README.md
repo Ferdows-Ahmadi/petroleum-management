@@ -62,9 +62,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-company-rele
 
 Open the generated `release/petroleum-management-company-handoff` folder and run `FIRST_SETUP.bat`. Select a new empty MySQL database and create the first manager during setup.
 
-For development checks, enable PHP's SQLite extension and run:
+After building the frontend assets, enable PHP's SQLite extension and run the tests with a temporary application key in PowerShell:
 
 ~~~powershell
+$env:APP_KEY = php -r "echo 'base64:', base64_encode(random_bytes(32));"
 php vendor/bin/phpunit -c phpunit.xml --do-not-cache-result
+Remove-Item Env:APP_KEY
 node --test tests/frontend/decimal.test.mjs
 ~~~
