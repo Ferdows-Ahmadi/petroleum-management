@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\FinancialTransactionType;
 use App\Enums\PartnerRole;
 use App\Enums\UserRole;
 use App\Models\BusinessPartner;
@@ -44,7 +45,20 @@ class OfficeAccountController extends Controller
             'last_activity' => $summaries[$partner->id]['last_activity'] ?? null,
         ]);
 
+        $paymentHistory = collect();
+        if ($selected && $canViewMoneyDetails) {
+            $movements = $selected->moneyMovements()->with(['deal', 'account', 'saraf'])->get();
+            $legacy = $selected->financialTransactions()->with('account')
+                ->whereIn('transaction_type', [FinancialTransactionType::PaymentReceived, FinancialTransactionType::PaymentPaid])->get();
+            $paymentHistory = $movements->toBase()->concat($legacy)->sortBy([
+                fn ($a, $b) => ($a->movement_date ?? $a->transaction_date) <=> ($b->movement_date ?? $b->transaction_date),
+                fn ($a, $b) => $a->id <=> $b->id,
+            ]);
+        }
+
         return view('office.accounts', [
+            'paymentSummary' => $selected && $canViewMoneyDetails ? $ledger->paymentSummary($selectedStatement) : [],
+            'paymentHistory' => $paymentHistory,
             'partners' => $partners,
             'partnerRows' => $partnerRows,
             'roleFilter' => $roleFilter,

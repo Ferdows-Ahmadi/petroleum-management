@@ -13,6 +13,7 @@
         $profileInput = $editingProfile ? session()->getOldInput() : [];
         $companyOwes = bccomp($balance, '0', 2) < 0;
         $isSaraf = $selectedPartner->roles->contains('role', \App\Enums\PartnerRole::Saraf);
+        $canEnterPayment = $canRecordMoney && $selectedPartner->is_active;
         $movementTypes = collect();
         if ($selectedPartner->roles->contains('role', \App\Enums\PartnerRole::Customer)) $movementTypes->push(\App\Enums\MoneyMovementType::CustomerReceipt);
         if ($selectedPartner->roles->contains('role', \App\Enums\PartnerRole::Supplier)) $movementTypes->push(\App\Enums\MoneyMovementType::SupplierPayment);
@@ -49,8 +50,16 @@
         @endif
     </section>
 
-    @if($canRecordMoney && $selectedPartner->is_active && $movementTypes->isNotEmpty())
-        <details id="money-entry" class="cardx card-pad office-money-actions" @if(request('entry') === 'money' || $editingMovement) open @endif><summary class="section-title">ثبت دریافت / پرداخت</summary><form method="POST" action="{{ route('money-movements.store') }}">@csrf<input type="hidden" name="confirm_now" value="1"><input type="hidden" name="return_to" value="accounts">@include('money-movements._fields', ['moneyMovement' => null, 'counterparty' => $selectedPartner, 'restoreMovementInput' => $editingMovement])<div class="form-actions"><button class="btnx btn-primaryx">{{ __('office.confirm_now') }}</button></div></form></details>
+    @if($canViewMoneyDetails)
+        @include('money-movements._overview', [
+            'totals' => $paymentSummary, 'profile' => true,
+            'allowReceipt' => $canEnterPayment && $movementTypes->contains(\App\Enums\MoneyMovementType::CustomerReceipt),
+            'allowPayment' => $canEnterPayment && $movementTypes->contains(\App\Enums\MoneyMovementType::SupplierPayment),
+        ])
+        @if($canEnterPayment && $movementTypes->isNotEmpty())
+            @include('money-movements._partial-entry', ['origin' => 'accounts', 'counterparty' => $selectedPartner])
+        @endif
+        @include('money-movements._history', ['history' => $paymentHistory, 'profile' => true])
     @endif
 
     @if($isSaraf && $canViewMoneyDetails)

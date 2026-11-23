@@ -6,6 +6,7 @@
     'selectedId' => null,
     'selectedName' => null,
     'required' => false,
+    'showReference' => false,
     'restoreInput' => true,
 ])
 @php
@@ -32,7 +33,7 @@
         <div class="party-empty" data-party-empty hidden>شخصی با این مشخصات پیدا نشد.</div>
         <button id="{{ $inputId }}_add" class="party-create" type="button" role="option" tabindex="-1" aria-selected="false" data-party-create hidden><span></span><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
     </div>
-    <div class="combobox-status" id="{{ $inputId }}_status" aria-live="polite" data-party-status></div>
+    <div class="combobox-status" id="{{ $inputId }}_status" aria-live="polite" data-party-status>@if($showReference && $selected && (string) $idValue === (string) $selected->id){{ $selected->reference_code }}@endif</div>
     @if($restoreInput)
         <x-field-error :name="$name" />
         <x-field-error :name="$textName" />
