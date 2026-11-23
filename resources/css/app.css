@@ -123,6 +123,32 @@ button, a, input, select, textarea, summary { outline-color: var(--primary); }
 .table-secondary { color: var(--muted); }
 .table-actions { display: flex; align-items: center; gap: 8px; }
 .sticky-table thead { position: sticky; top: 0; z-index: 2; }
+.ledger-search { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 14px; margin-block: 12px; }
+.ledger-search label { width: min(100%, 22rem); font-weight: 700; font-size: 12px; }
+.ledger-search input { margin-block-start: 4px; }
+.ledger-search [role="status"] { color: var(--muted); font-size: 12px; padding-block: 8px; }
+.ledger-scroll { border: 1px solid var(--border); border-radius: 6px; }
+.ledger-table { border-collapse: separate; border-spacing: 0; }
+.ledger-table th, .ledger-table td { border-inline-end: 1px solid #e6edeb; text-align: right; }
+.ledger-table thead th { padding: 7px 10px; height: 36px; color: #284b46; background: #e9f2ef; border-top: 0; border-bottom-color: #aec6bf; font-size: 12px; }
+.ledger-table tbody :is(td,th) { height: 38px; padding: 6px 10px; font-size: 13px; background: white; border-top: 0; border-bottom: 1px solid #e9edef; }
+.ledger-table tbody tr:nth-child(even) > :is(th,td) { background: #f7faf9; }
+.ledger-table tbody tr:is(:hover, :focus-within) > :is(th,td) { background: #edf5f2; }
+.ledger-table :is(th,td):last-child { border-inline-end: 0; }
+.ledger-table .ledger-number { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ledger-table .ledger-unit { display: block; font-size: 10px; font-weight: 500; }
+.ledger-table .ledger-description { min-width: 13rem; max-width: 24rem; white-space: normal; overflow-wrap: anywhere; }
+.ledger-table a { color: var(--primary); text-underline-offset: 3px; }
+.ledger-table a:is(:focus-visible,:hover) { text-decoration: underline; }
+@media screen {
+    .ledger-scroll { max-height: 70vh; overflow: auto; scrollbar-color: #88a49b #f1f5f3; }
+    .ledger-table thead th { position: sticky; top: 0; z-index: 2; }
+    /* The RTL identity column stays on the right even when its reference reads LTR. */
+    .ledger-table :is(th,td):first-child { position: sticky; right: 0; z-index: 1; min-width: 7.25rem; max-width: min(13rem, 38vw); white-space: normal; overflow-wrap: anywhere; box-shadow: -1px 0 #bccfc9; }
+    .ledger-table thead th:first-child { z-index: 3; }
+    .ledger-table td.ledger-number:first-child { white-space: nowrap; }
+    #deal-ledger, #account-ledger-heading { scroll-margin-block-start: calc(var(--topbar) + 12px); }
+}
 .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; font-size: 10px; line-height: 1.25; font-weight: 700; }
 .badge-green { color: #236f4e; background: var(--success-soft); }
 .badge-red { color: #a63d3d; background: var(--danger-soft); }

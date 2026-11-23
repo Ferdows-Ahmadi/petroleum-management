@@ -13,6 +13,7 @@ use App\Models\Sale;
 use App\Models\Warehouse;
 use App\Services\InventoryBalanceService;
 use App\Support\NumberFormat;
+use Dom\HTMLDocument;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -136,10 +137,14 @@ class SimpleOfficeV21WorkflowTest extends TestCase
         $saleWorkspace = $this->actingAs($manager)->get(route('office.transactions', ['tab' => 'sale']))->assertOk();
         $this->assertStringNotContainsString('0 kg</td>', $saleWorkspace->getContent());
 
-        $this->actingAs($manager)->get(route('office.accounts', [
+        $profile = $this->actingAs($manager)->get(route('office.accounts', [
             'partner_query' => $customer->name,
             'partner_id' => $customer->id,
-        ]))->assertOk()->assertSee('19,355 kg', false)->assertDontSee('@elseif', false);
+        ]))->assertOk()->assertDontSee('@elseif', false);
+        $ledger = HTMLDocument::createFromString($profile->getContent(), LIBXML_NOERROR)
+            ->querySelector('[aria-labelledby="account-ledger-heading"] table');
+        $this->assertStringContainsString('kg', $ledger->querySelector('thead th:nth-child(7)')->textContent);
+        $this->assertSame('19,355', trim($ledger->querySelector('tbody td:nth-child(7)')->textContent));
     }
 
     public function test_direct_net_rejects_two_stage_fields(): void

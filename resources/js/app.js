@@ -5,6 +5,9 @@ import { preventImplicitEntrySubmit } from './entry-keyboard.js';
 import { initializePartyCombobox } from './party-combobox.js';
 import { bindMovementCounterparty } from './movement-counterparty.js';
 import './related-deal-search.js';
+import { bindLedgerSearch } from './ledger-search.js';
+
+document.querySelectorAll('[data-ledger]').forEach(bindLedgerSearch);
 
 const formatTrimmed = (value, maximumFractionDigits = 3) => Number(value || 0).toLocaleString('en-US', {
     minimumFractionDigits: 0,

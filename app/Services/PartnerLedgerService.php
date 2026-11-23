@@ -34,11 +34,17 @@ class PartnerLedgerService
         }
 
         foreach ($partner->dealDestinations()->whereHas('deal', fn ($query) => $query->where('status', DealStatus::Completed->value))->with('deal')->get() as $destination) {
-            $entries->push($this->entry($destination->deal->deal_date->toDateString(), 2, $destination->id, 'DEAL_DESTINATION', $destination->deal->reference_code, $destination->deal, $destination->amount));
+            $entry = $this->entry($destination->deal->deal_date->toDateString(), 2, $destination->id, 'DEAL_DESTINATION', $destination->deal->reference_code, $destination->deal, $destination->amount);
+            $entry['quantity_kg'] = $destination->final_quantity_kg;
+            $entry['rate_per_ton'] = $destination->rate_per_ton;
+            $entries->push($entry);
         }
 
         foreach ($partner->dealSources()->whereHas('deal', fn ($query) => $query->where('status', DealStatus::Completed->value))->with('deal')->get() as $source) {
-            $entries->push($this->entry($source->deal->deal_date->toDateString(), 2, $source->id, 'DEAL_SOURCE', $source->deal->reference_code, $source->deal, bcmul($source->amount, '-1', 2)));
+            $entry = $this->entry($source->deal->deal_date->toDateString(), 2, $source->id, 'DEAL_SOURCE', $source->deal->reference_code, $source->deal, bcmul($source->amount, '-1', 2));
+            $entry['quantity_kg'] = $source->quantity_kg;
+            $entry['rate_per_ton'] = $source->rate_per_ton;
+            $entries->push($entry);
         }
 
         $transactions = $partner->financialTransactions()

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\DealStatus;
 use App\Enums\FinancialTransactionStatus;
 use App\Enums\FinancialTransactionType;
+use App\Enums\MoneyMovementStatus;
 use App\Enums\PartnerRole;
 use App\Enums\UserRole;
 use App\Enums\WeighingMode;
@@ -35,7 +36,14 @@ class DealController extends Controller
 {
     public function index(Request $request): View
     {
+        $canCreate = $request->user()->hasAnyRole(UserRole::GeneralManager, UserRole::SystemAdmin, UserRole::PurchaseSalesOfficer);
+        $canViewPayments = $request->user()->hasAnyRole(UserRole::GeneralManager, UserRole::SystemAdmin, UserRole::Accountant);
         $deals = Deal::query()
+            ->when($canViewPayments, fn (Builder $query) => $query->with([
+                'moneyMovements' => fn ($movements) => $movements
+                    ->select('id', 'deal_id', 'status', 'movement_type', 'amount_usd')
+                    ->where('status', MoneyMovementStatus::Confirmed),
+            ]))
             ->with(['product', 'sources.supplier', 'sources.warehouse', 'destinations.customer', 'destinations.warehouse', 'latestConfirmedSettlement'])
             ->when($request->filled('search'), function (Builder $query) use ($request): void {
                 $search = $request->string('search')->trim()->value();
@@ -43,6 +51,10 @@ class DealController extends Controller
                     $query->where('reference_number', 'like', "%{$search}%")
                         ->orWhereHas('sources.supplier', fn (Builder $supplier) => $supplier->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('destinations.customer', fn (Builder $customer) => $customer->where('name', 'like', "%{$search}%"));
+                    if (preg_match('/^DL-0*(\d+)$/i', $search, $id)) {
+                        $query->orWhere(fn (Builder $fallback) => $fallback->whereKey((int) $id[1])
+                            ->where(fn (Builder $ref) => $ref->whereNull('reference_number')->orWhere('reference_number', '')));
+                    }
                 });
             })
             ->when(in_array($request->input('status'), array_column(DealStatus::cases(), 'value'), true), fn (Builder $query) => $query->where('status', $request->input('status')))
@@ -50,20 +62,24 @@ class DealController extends Controller
             ->latest('deal_date')
             ->latest('id')
             ->paginate(15)
-            ->withQueryString();
+            ->withQueryString()->fragment('deal-ledger');
 
         $products = Product::query()->where('is_active', true)->orderBy('name')->get();
-        $defaultProductId = Deal::query()->whereIn('product_id', $products->modelKeys())->select('product_id', DB::raw('COUNT(*) AS aggregate'))
-            ->groupBy('product_id')->orderByDesc('aggregate')->value('product_id') ?? $products->first()?->id;
+        $defaultProductId = $canCreate ? (Deal::query()->whereIn('product_id', $products->modelKeys())->select('product_id', DB::raw('COUNT(*) AS aggregate'))
+            ->groupBy('product_id')->orderByDesc('aggregate')->value('product_id') ?? $products->first()?->id) : null;
 
         return view('deals.index', [
             'deals' => $deals,
+            'canViewPayments' => $canViewPayments,
+            'paymentStates' => $canViewPayments ? $deals->getCollection()->mapWithKeys(
+                fn (Deal $deal) => [$deal->id => app(DealMoneySummaryService::class)->totals($deal)['settlement_state']]
+            ) : [],
             'products' => $products,
-            'warehouses' => Warehouse::query()->where('is_active', true)->orderBy('name')->get(),
-            'parties' => BusinessPartner::query()->where('is_active', true)->with('roles')->orderBy('name')->get(),
+            'warehouses' => $canCreate ? Warehouse::query()->where('is_active', true)->orderBy('name')->get() : collect(),
+            'parties' => $canCreate ? BusinessPartner::query()->where('is_active', true)->with('roles')->orderBy('name')->get() : collect(),
             'defaultProductId' => $defaultProductId,
             'canViewCommercialValues' => $request->user()->hasAnyRole(UserRole::GeneralManager, UserRole::SystemAdmin, UserRole::Accountant, UserRole::PurchaseSalesOfficer),
-            'canCreate' => $request->user()->hasAnyRole(UserRole::GeneralManager, UserRole::SystemAdmin, UserRole::PurchaseSalesOfficer),
+            'canCreate' => $canCreate,
             'canWeigh' => $request->user()->hasAnyRole(UserRole::GeneralManager, UserRole::SystemAdmin),
         ]);
     }
