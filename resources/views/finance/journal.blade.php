@@ -67,13 +67,13 @@
         </section>
     @endif
     <section class="cardx card-pad"><form class="filters" method="GET" data-journal-context-form>
-        <input class="control filter-control ltr-value" name="date" value="{{ app(\App\Support\JalaliDate::class)->format($date) }}" placeholder="1405/05/19">
-        <select class="control" name="context" data-journal-context><option value="account" @selected($context === 'account')>{{ __('finance.financial_account') }}</option><option value="saraf" @selected($context === 'saraf')>{{ __('finance.saraf') }}</option></select>
-        <select class="control grow" name="account_id" data-journal-account>
+        <input class="control filter-control ltr-value" aria-label="تاریخ روزنامچه" name="date" value="{{ app(\App\Support\JalaliDate::class)->format($date) }}" placeholder="1405/05/19">
+        <select class="control" aria-label="نوع حساب" name="context" data-journal-context><option value="account" @selected($context === 'account')>{{ __('finance.financial_account') }}</option><option value="saraf" @selected($context === 'saraf')>{{ __('finance.saraf') }}</option></select>
+        <select class="control grow" aria-label="حساب مالی" name="account_id" data-journal-account>
             @if($context === 'account' && ! $account)<option value="">{{ __('common.not_available') }}</option>@endif
             @foreach($accounts as $item)<option value="{{ $item->id }}" @selected($account?->id === $item->id)>{{ $item->name }} · {{ $item->currency->value }}</option>@endforeach
         </select>
-        <select class="control grow" name="saraf_id" data-journal-saraf>
+        <select class="control grow" aria-label="صراف" name="saraf_id" data-journal-saraf>
             @if($context === 'saraf' && ! $saraf)<option value="">{{ __('common.not_available') }}</option>@endif
             @foreach($sarafs as $item)<option value="{{ $item->id }}" @selected($saraf?->id === $item->id)>{{ $item->name }} · {{ $item->reference_code }}</option>@endforeach
         </select>
@@ -83,26 +83,66 @@
         <div class="empty">{{ __('common.no_records') }}</div>
     @else
         <div class="kpis finance-kpis" style="margin-top:18px">@foreach([['finance.day_opening',$summary['opening_balance']],['finance.received_total',$summary['received']],['finance.paid_total',$summary['paid']],['finance.expense_total',$summary['expenses']],['finance.day_closing',$summary['closing_balance']]] as $item)<div class="cardx kpi"><div class="kpi-label">{{ __($item[0]) }}</div><div class="kpi-value ltr-value">{{ app(\App\Support\NumberFormat::class)->money($item[1]) }} {{ $currency }}</div></div>@endforeach</div>
-        <section class="cardx card-pad">
-            <div class="section-head"><div><div class="section-title">{{ $context === 'saraf' ? $saraf->name : $account->name }}</div><div class="card-sub">{{ $context === 'saraf' ? __('finance.saraf_position') : __('finance.account_formula') }}</div></div></div>
+        <section class="cardx card-pad" data-ledger>
+            <div class="section-head">
+                <div>
+                    <h2 class="section-title">{{ $context === 'saraf' ? $saraf->name : $account->name }} · <bdi>@jalali($date)</bdi></h2>
+                    <div class="card-sub">{{ $context === 'saraf' ? __('finance.saraf_position') : __('finance.account_formula') }}</div>
+                </div>
+            </div>
             @if($summary['entries']->isEmpty())
                 <div class="empty compact">{{ __('common.no_records') }}</div>
             @else
-                <div class="table-wrap"><table class="tablex">
-                    <thead><tr><th>{{ __('finance.transaction_date') }}</th><th>{{ __('finance.description') }}</th><th>{{ __('finance.partner') }}</th><th>{{ __('finance.saraf') }}</th><th>معامله</th><th>مرجع</th><th>{{ __('finance.incoming') }}</th><th>{{ __('finance.outgoing') }}</th><th>باقی حساب</th><th>{{ __('finance.running_balance') }}</th></tr></thead>
-                    <tbody>@foreach($summary['entries'] as $entry)@php($source = $entry['source'] ?? null)<tr>
-                        <td class="ltr-value">{{ $entry['sort_at']->format('H:i') }}</td>
-                        <td>@if($source instanceof \App\Models\MoneyMovement)<a href="{{ route('money-movements.show', $source) }}">{{ $entry['description'] }}</a>@else{{ $entry['description'] }}@endif</td>
-                        <td>{{ $entry['party'] }}</td>
-                        <td>{{ $source instanceof \App\Models\MoneyMovement ? ($source->saraf?->name ?? '—') : '—' }}</td>
-                        <td>@if($source instanceof \App\Models\MoneyMovement && $source->deal)<a class="table-link" href="{{ route('deals.show', $source->deal) }}">{{ \App\Support\RelatedDeals::label($source->deal) }}</a>@else—@endif</td>
-                        <td class="ltr-value">{{ $source?->reference_code ?? '—' }}</td>
-                        <td class="ltr-value">{{ $entry['direction'] === 1 ? app(\App\Support\NumberFormat::class)->money($entry['amount']) : '—' }}</td>
-                        <td class="ltr-value">{{ $entry['direction'] === -1 ? app(\App\Support\NumberFormat::class)->money($entry['amount']) : '—' }}</td>
-                        <td class="ltr-value">{{ $entry['remaining_balance'] !== null ? app(\App\Support\NumberFormat::class)->absoluteMoney($entry['remaining_balance']).' USD' : '—' }}</td>
-                        <td class="ltr-value"><strong>{{ app(\App\Support\NumberFormat::class)->money($entry['running_balance']) }} {{ $currency }}</strong></td>
-                    </tr>@endforeach</tbody>
-                </table></div>
+                <x-ledger-search />
+                <div class="table-wrap ledger-scroll" tabindex="0" role="region" aria-label="{{ __('finance.journal') }}">
+                    <table class="tablex ledger-table">
+                        <thead><tr>
+                            <th scope="col">{{ __('common.reference') }}</th>
+                            <th scope="col">ساعت ثبت</th>
+                            <th scope="col">{{ __('finance.partner') }}</th>
+                            <th scope="col">{{ __('finance.incoming') }} <bdi class="ledger-unit">{{ $currency }}</bdi></th>
+                            <th scope="col">{{ __('finance.outgoing') }} <bdi class="ledger-unit">{{ $currency }}</bdi></th>
+                            <th scope="col">{{ __('finance.running_balance') }} <bdi class="ledger-unit">{{ $currency }}</bdi></th>
+                            <th scope="col">باقی حساب طرف <bdi class="ledger-unit">USD</bdi></th>
+                            <th scope="col">{{ __('finance.description') }}</th>
+                            <th scope="col">معامله</th>
+                            <th scope="col">{{ __('finance.saraf') }}</th>
+                        </tr></thead>
+                        <tbody>
+                            @foreach($summary['entries'] as $entry)
+                                @php
+                                    $source = $entry['source'];
+                                    $isMovement = $source instanceof \App\Models\MoneyMovement;
+                                    $link = match (true) {
+                                        $isMovement => route('money-movements.show', $source),
+                                        $source instanceof \App\Models\CapitalTransaction => route('capital-transactions.show', $source),
+                                        $entry['kind'] === 'expense' => route('expenses.show', $source),
+                                        default => route('payments.show', $source),
+                                    };
+                                    $numbers = app(\App\Support\NumberFormat::class);
+                                @endphp
+                                <tr>
+                                    <td class="ledger-number"><a class="table-link" href="{{ $link }}">{{ $source->reference_code }}</a></td>
+                                    <td class="ledger-number">{{ $entry['sort_at']->format('H:i') }}</td>
+                                    <td>{{ $entry['party'] }}</td>
+                                    <td class="ledger-number">{{ $entry['direction'] === 1 ? $numbers->money($entry['amount']) : '—' }}</td>
+                                    <td class="ledger-number">{{ $entry['direction'] === -1 ? $numbers->money($entry['amount']) : '—' }}</td>
+                                    <td class="ledger-number"><strong>{{ $numbers->money($entry['running_balance']) }} {{ $currency }}</strong></td>
+                                    <td class="ledger-number">{{ $entry['remaining_balance'] !== null ? $numbers->absoluteMoney($entry['remaining_balance']).' USD' : '—' }}</td>
+                                    <td class="ledger-description">{{ $entry['description'] }}</td>
+                                    <td class="ledger-description">
+                                        @if($isMovement && $source->deal)
+                                            <a class="table-link" href="{{ route('deals.show', $source->deal) }}">{{ \App\Support\RelatedDeals::label($source->deal) }}</a>
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                    <td>{{ $isMovement ? ($source->saraf?->name ?? '—') : '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             @endif
         </section>
     @endif

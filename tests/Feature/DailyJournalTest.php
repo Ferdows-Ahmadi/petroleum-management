@@ -70,6 +70,26 @@ class DailyJournalTest extends TestCase
         $this->assertCount(0, $summary['entries']);
     }
 
+    public function test_journal_ledger_shows_confirmed_rows_for_the_selected_account_and_jalali_day(): void
+    {
+        [$account, $user, $partner] = $this->context();
+        $post = fn ($account, $type, $amount, $day = '2026-08-08', $confirmed = true) => $this->financeTransaction(
+            $this->paymentPayload($account, $partner, $amount, $day), $type, $user, $confirmed
+        );
+        $received = $post($account, FinancialTransactionType::PaymentReceived, '1100.50');
+        $paid = $post($account, FinancialTransactionType::PaymentPaid, '25.25');
+        $elsewhere = $post($this->financeAccount($user), FinancialTransactionType::PaymentReceived, '500');
+        $later = $post($account, FinancialTransactionType::PaymentReceived, '25', '2026-08-09');
+        $draft = $post($account, FinancialTransactionType::PaymentReceived, '50', confirmed: false);
+
+        $this->actingAs($user)
+            ->get(route('finance.journal', ['context' => 'account', 'account_id' => $account->id, 'date' => '1405/05/17']))
+            ->assertOk()->assertSee('1405/05/17')->assertSee('data-ledger-search', false)
+            ->assertSeeInOrder([$received->reference_code, '1,100.50', '1,200.50 USD', $paid->reference_code, '25.25', '1,175.25 USD'])
+            ->assertSee(route('payments.show', $paid), false)
+            ->assertDontSee($elsewhere->reference_code)->assertDontSee($later->reference_code)->assertDontSee($draft->reference_code);
+    }
+
     private function context(): array
     {
         $user = $this->financeUser();

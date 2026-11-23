@@ -13,6 +13,15 @@ class DealMoneySummaryService
     public function forDeal(Deal $deal): array
     {
         $deal->loadMissing(['sources', 'destinations', 'moneyMovements.counterparty', 'moneyMovements.saraf', 'moneyMovements.account']);
+
+        return $this->totals($deal) + [
+            'movements' => $deal->moneyMovements->sortByDesc(fn ($movement) => $movement->movement_date->toDateString().'-'.str_pad((string) $movement->id, 10, '0', STR_PAD_LEFT))->values(),
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function totals(Deal $deal): array
+    {
         $confirmed = $deal->moneyMovements->where('status', MoneyMovementStatus::Confirmed);
         $received = $confirmed->where('movement_type', MoneyMovementType::CustomerReceipt)
             ->reduce(fn (string $sum, $movement): string => bcadd($sum, $movement->amount_usd, 2), '0.00');
@@ -33,7 +42,6 @@ class DealMoneySummaryService
             'remaining_payable' => $remainingPayable,
             'remaining_receivable' => $remainingReceivable,
             'settlement_state' => $deal->status !== DealStatus::Completed ? 'PENDING' : ($settled ? 'SETTLED' : ($hasAny ? 'PARTIAL' : 'UNPAID')),
-            'movements' => $deal->moneyMovements->sortByDesc(fn ($movement) => $movement->movement_date->toDateString().'-'.str_pad((string) $movement->id, 10, '0', STR_PAD_LEFT))->values(),
         ];
     }
 }

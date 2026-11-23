@@ -5,6 +5,7 @@
 @section('content')
 @if($selectedPartner)
     <x-page-header :title="$selectedPartner->name" :subtitle="$selectedPartner->reference_code">
+        @if($canViewMoneyDetails)<a class="btnx btn-lightx" href="#account-ledger-heading"><i class="bi bi-journal-text"></i>گردش حساب</a>@endif
         <a class="btnx btn-lightx" href="{{ route('office.accounts', request()->only(['search', 'role'])) }}"><i class="bi bi-arrow-right"></i>فهرست حساب‌ها</a>
     </x-page-header>
     @php
@@ -63,15 +64,16 @@
     @endif
 
     @if($isSaraf && $canViewMoneyDetails)
-        <section class="cardx card-pad office-history"><div class="section-head"><div><div class="section-title">گردش صراف</div><div class="card-sub">موقعیت دفتر با صراف: <strong class="ltr-value">{{ app(\App\Support\NumberFormat::class)->absoluteMoney($sarafBalance) }} USD</strong></div></div></div><div class="table-wrap"><table class="tablex"><thead><tr><th>تاریخ</th><th>تفصیل</th><th>شخص مرتبط</th><th>معامله</th><th>دریافت</th><th>پرداخت</th><th>بیلانس</th></tr></thead><tbody>@forelse($sarafStatement as $entry)<tr><td class="ltr-value">@jalali($entry['date'])</td><td><a class="table-link" href="{{ route('money-movements.show', $entry['source']) }}">{{ __('finance.ledger_types.'.$entry['type']) }}</a><div class="td-sub">{{ $entry['reference'] }}</div></td><td>{{ $entry['related_party'] ?: '—' }}</td><td>{{ $entry['deal'] ?: '—' }}</td><td class="ltr-value">{{ $entry['incoming'] ? app(\App\Support\NumberFormat::class)->money($entry['incoming']) : '—' }}</td><td class="ltr-value">{{ $entry['outgoing'] ? app(\App\Support\NumberFormat::class)->money($entry['outgoing']) : '—' }}</td><td class="ltr-value">{{ app(\App\Support\NumberFormat::class)->money($entry['running_balance']) }} USD</td></tr>@empty<tr><td colspan="7"><div class="empty compact">{{ __('common.no_records') }}</div></td></tr>@endforelse</tbody></table></div></section>
+        @include('office._saraf-statement')
     @endif
 
     @if($canViewMoneyDetails)
-        <section class="cardx card-pad office-history" aria-labelledby="account-ledger-heading"><div class="section-head"><div><h2 class="section-title" id="account-ledger-heading">گردش حساب</h2><div class="card-sub">معاملات تجارتی و رویدادهای پولی در یک خط زمانی</div></div></div><div class="table-wrap"><table class="tablex"><thead><tr><th>تاریخ</th><th>تفصیل</th><th>مقدار</th><th>نرخ فی تن</th><th>مرجع</th><th>بدهکار</th><th>بستانکار</th><th>بیلانس</th></tr></thead><tbody>@forelse($statement as $entry)@php
-            $ledgerSource = $entry['source'];
-            $quantity = $ledgerSource instanceof \App\Models\Sale ? $ledgerSource->total_final_quantity_kg : ($ledgerSource instanceof \App\Models\Purchase ? $ledgerSource->total_quantity_kg : ($ledgerSource instanceof \App\Models\Deal ? ($ledgerSource->destinations->first()?->final_quantity_kg ?? $ledgerSource->sources->first()?->quantity_kg) : null));
-            $rate = ($ledgerSource instanceof \App\Models\Sale || $ledgerSource instanceof \App\Models\Purchase) && $ledgerSource->items->count() === 1 ? $ledgerSource->items->first()->rate_per_ton : ($ledgerSource instanceof \App\Models\Deal ? ($ledgerSource->destinations->first()?->rate_per_ton ?? $ledgerSource->sources->first()?->rate_per_ton) : null);
-        @endphp<tr><td class="ltr-value">@jalali($entry['date'])</td><td>{{ __('finance.ledger_types.'.$entry['type']) }}@if(!empty($entry['related_party']))<div class="td-sub">{{ __('finance.saraf') }}: {{ $entry['related_party'] }}</div>@endif</td><td class="ltr-value">{{ $quantity !== null ? app(\App\Support\NumberFormat::class)->weight($quantity).' kg' : '—' }}</td><td class="ltr-value">{{ $rate !== null ? app(\App\Support\NumberFormat::class)->rate($rate).' USD' : '—' }}</td><td>@if($ledgerSource instanceof \App\Models\MoneyMovement)<a class="table-link" href="{{ route('money-movements.show', $ledgerSource) }}">{{ $entry['reference'] }}</a>@elseif($ledgerSource instanceof \App\Models\Deal)<a class="table-link" href="{{ route('deals.show', $ledgerSource) }}">{{ $entry['reference'] }}</a>@else{{ $entry['reference'] }}@endif</td><td class="ltr-value">{{ $entry['debit'] ? app(\App\Support\NumberFormat::class)->money($entry['debit']) : '—' }}</td><td class="ltr-value">{{ $entry['credit'] ? app(\App\Support\NumberFormat::class)->money($entry['credit']) : '—' }}</td><td class="ltr-value"><strong>{{ app(\App\Support\NumberFormat::class)->money($entry['running_balance']) }} USD</strong></td></tr>@empty<tr><td colspan="8"><div class="empty compact">{{ __('common.no_records') }}</div></td></tr>@endforelse</tbody></table></div></section>
+        <section class="cardx card-pad office-history" aria-labelledby="account-ledger-heading" data-ledger>
+            <div class="section-head">
+                <h2 class="section-title" id="account-ledger-heading">گردش حساب</h2>
+            </div>
+            @include('partner-finance._ledger', ['showTradeDetails' => true, 'canViewCoreFinance' => true])
+        </section>
     @endif
 @else
     @include('office._account-directory')
