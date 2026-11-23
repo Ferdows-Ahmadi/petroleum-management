@@ -1,6 +1,6 @@
 @php
     $restoreMovementInput ??= true;
-    $moneyOld = fn (string $field, mixed $default = null): mixed => $restoreMovementInput ? old($field, $default) : $default;
+    $moneyOld = fn (string $field, mixed $default = null): mixed => $restoreMovementInput ? old($field, $default) : ($journalMoneyDefaults[$field] ?? $default);
     $movement = $moneyMovement ?? null;
     $selectedType = $moneyOld('movement_type', $movement?->movement_type?->value ?? ($defaultType ?? 'CUSTOMER_RECEIPT'));
     $selectedRoute = $moneyOld('money_route', $movement ? ($movement->saraf_id ? 'saraf' : 'account') : ($sarafs->isNotEmpty() ? 'saraf' : 'account'));

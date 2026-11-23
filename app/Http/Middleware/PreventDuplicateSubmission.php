@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\MoneyMovement;
 use App\Models\User;
+use App\Support\JournalContext;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,14 +37,17 @@ class PreventDuplicateSubmission
             User::query()->whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
             $receipt = DB::table('operation_receipts')->where('user_id', $request->user()->id)->where('operation_key', $key)->first();
             if ($receipt) {
-                $destination = $this->receiptDestination($request, $receipt->location);
-                if (! hash_equals($receipt->request_hash, $hash)) {
-                    return $this->reject($request, __('common.operation_conflict'), $destination);
+                $savedPage = $this->receiptDestination($request, $receipt->location);
+                $destination = $savedPage ? url($savedPage->getRequestUri()) : null;
+                $sameSubmission = hash_equals($receipt->request_hash, $hash);
+                $fresh = $this->freshForm($request, $sameSubmission ? $request : $savedPage);
+                if (! $sameSubmission) {
+                    return $this->reject($request, __('common.operation_conflict'), $destination, $fresh);
                 }
 
-                return redirect($destination ?? $this->freshForm($request))->with('operation_recovery', [
+                return redirect($destination ?? $fresh)->with('operation_recovery', [
                     'message' => __('common.operation_saved'),
-                    'fresh' => $this->freshForm($request),
+                    'fresh' => $fresh,
                 ]);
             }
             $response = $next($request);
@@ -58,7 +63,7 @@ class PreventDuplicateSubmission
         });
     }
 
-    private function reject(Request $request, string $message, ?string $destination = null): Response
+    private function reject(Request $request, string $message, ?string $destination = null, ?string $fresh = null): Response
     {
         if ($request->expectsJson()) {
             return response()->json(['message' => $message, 'errors' => ['operation_key' => [$message]]], 422);
@@ -68,7 +73,7 @@ class PreventDuplicateSubmission
             throw ValidationException::withMessages(['operation_key' => $message]);
         }
 
-        $fresh = $this->freshForm($request);
+        $fresh ??= $this->freshForm($request);
 
         return redirect($destination ?? $fresh)
             ->withErrors(['operation_key' => $message])
@@ -76,18 +81,18 @@ class PreventDuplicateSubmission
             ->with('operation_recovery', ['message' => $message, 'fresh' => $fresh, 'error' => true]);
     }
 
-    private function freshForm(Request $request): string
+    private function freshForm(Request $request, ?Request $contextSource = null): string
     {
         return match ($request->route()?->getName()) {
             'deals.store' => route('deals.index').'#new-deal',
             'expenses.store' => route('expenses.create'),
             'office.finance.expenses.store' => route('finance.journal', ['entry' => 'expense']).'#expense-entry',
-            'money-movements.store', 'office.accounts.money.store' => $this->freshMoneyForm($request),
+            'money-movements.store', 'office.accounts.money.store' => $this->freshMoneyForm($request, $contextSource),
             default => route('dashboard'),
         };
     }
 
-    private function freshMoneyForm(Request $request): string
+    private function freshMoneyForm(Request $request, ?Request $contextSource): string
     {
         $dealId = $request->integer('deal_id');
         if ($request->input('return_to') === 'deal' && $dealId > 0) {
@@ -99,10 +104,28 @@ class PreventDuplicateSubmission
             return route('office.accounts', ['partner_id' => $partnerId, 'entry' => 'money']).'#money-entry';
         }
 
-        return route('finance.journal', ['entry' => 'money']).'#money-entry';
+        $context = [];
+        if ($request->input('return_to') === 'journal' && $contextSource) {
+            if ($contextSource === $request) {
+                // The receipt hash verified these exact payment fields.
+                $context = JournalContext::forPayment($request->integer('financial_account_id'), $request->integer('saraf_id'));
+            } elseif ($contextSource->routeIs('money-movements.show')) {
+                $movement = MoneyMovement::find($contextSource->route('moneyMovement'));
+                $context = JournalContext::forPayment($movement?->financial_account_id, $movement?->saraf_id);
+            } elseif ($contextSource->routeIs('finance.journal')) {
+                // Older receipts stored the successful journal redirect itself.
+                $context = match ($contextSource->query('context')) {
+                    'account' => JournalContext::forPayment($contextSource->integer('account_id'), null),
+                    'saraf' => JournalContext::forPayment(null, $contextSource->integer('saraf_id')),
+                    default => [],
+                };
+            }
+        }
+
+        return route('finance.journal', ['entry' => 'money', ...$context]).'#money-entry';
     }
 
-    private function receiptDestination(Request $request, string $location): ?string
+    private function receiptDestination(Request $request, string $location): ?Request
     {
         $path = parse_url($location, PHP_URL_PATH);
         if (! is_string($path) || ! str_starts_with($path, '/') || str_starts_with($path, '//') || str_contains($path, '\\')) {
@@ -112,8 +135,10 @@ class PreventDuplicateSubmission
             $path = substr($path, strlen($baseUrl));
         }
 
+        $query = parse_url($location, PHP_URL_QUERY);
+        $page = Request::create($path.(is_string($query) && $query !== '' ? '?'.$query : ''));
         try {
-            $route = Route::getRoutes()->match(Request::create($path))->getName();
+            $route = Route::getRoutes()->match($page);
         } catch (HttpException) {
             return null;
         }
@@ -125,12 +150,12 @@ class PreventDuplicateSubmission
             'money-movements.store', 'office.accounts.money.store' => ['money-movements.show', 'deals.show', 'office.accounts', 'finance.journal'],
             default => [],
         };
-        if (! in_array($route, $allowed, true)) {
+        if (! in_array($route->getName(), $allowed, true)) {
             return null;
         }
 
-        $query = parse_url($location, PHP_URL_QUERY);
+        $page->setRouteResolver(fn () => $route);
 
-        return url($path).(is_string($query) && $query !== '' ? '?'.$query : '');
+        return $page;
     }
 }

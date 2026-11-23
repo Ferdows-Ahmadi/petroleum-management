@@ -10,6 +10,7 @@ use App\Models\BusinessPartner;
 use App\Models\FinancialAccount;
 use App\Models\MoneyMovement;
 use App\Services\MoneyMovementService;
+use App\Support\JournalContext;
 use App\Support\RelatedDeals;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -94,7 +95,7 @@ class MoneyMovementController extends Controller
     {
         return match ($request->input('return_to')) {
             'deal' => $movement->deal_id ? redirect()->route('deals.show', $movement->deal_id) : redirect()->route('money-movements.show', $movement),
-            'journal' => redirect()->route('finance.journal', $movement->saraf_id ? ['context' => 'saraf', 'saraf_id' => $movement->saraf_id] : ['context' => 'account', 'account_id' => $movement->financial_account_id]),
+            'journal' => redirect()->route('finance.journal', JournalContext::forPayment($movement->financial_account_id, $movement->saraf_id)),
             default => redirect()->route('office.accounts', ['partner_id' => $movement->counterparty_id ?: $movement->saraf_id]),
         };
     }

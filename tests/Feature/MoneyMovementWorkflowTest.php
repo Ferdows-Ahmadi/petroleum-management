@@ -24,6 +24,8 @@ use App\Support\RelatedDeals;
 use Dom\Element;
 use Dom\HTMLDocument;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Concerns\CreatesFinanceFixtures;
@@ -351,6 +353,118 @@ class MoneyMovementWorkflowTest extends TestCase
         $this->assertSame('200.00', app(PartnerLedgerService::class)->balanceFor($customer));
     }
 
+    #[TestWith(['account', false], 'account with saved movement location')]
+    #[TestWith(['saraf', false], 'saraf with saved movement location')]
+    #[TestWith(['account', true], 'account with legacy journal location')]
+    #[TestWith(['saraf', true], 'saraf with legacy journal location')]
+    public function test_duplicate_journal_payment_opens_a_fresh_entry_on_the_original_route(string $route, bool $legacyReceipt): void
+    {
+        $user = $this->financeUser();
+        $firstAccount = $this->financeAccount($user);
+        $firstAccount->update(['name' => 'A cash']);
+        $account = $this->financeAccount($user, Currency::Afn);
+        $account->update(['name' => 'Z cash']);
+        $firstSaraf = $this->party('A saraf', [PartnerRole::Saraf]);
+        $saraf = $this->party('Z saraf', [PartnerRole::Saraf]);
+        $customer = $this->party('Customer', [PartnerRole::Customer]);
+        $accountRoute = $route === 'account';
+        $context = $accountRoute
+            ? ['context' => 'account', 'account_id' => $account->id]
+            : ['context' => 'saraf', 'saraf_id' => $saraf->id];
+
+        $this->actingAs($user);
+        $initialForm = $this->journalMoneyForm(route('finance.journal', ['entry' => 'money', ...$context]));
+        $key = $initialForm->querySelector('input[name=operation_key]')->getAttribute('value');
+        $data = $this->payload([
+            'counterparty_id' => $customer->id, 'money_route' => $route,
+            'financial_account_id' => $accountRoute ? $account->id : null, 'saraf_id' => $accountRoute ? null : $saraf->id,
+            'amount' => $accountRoute ? '7000' : '100', 'currency' => $accountRoute ? 'AFN' : 'USD',
+            'exchange_rate_to_usd' => $accountRoute ? '70' : null,
+            'return_to' => 'journal', 'confirm_now' => 1, 'operation_key' => $key,
+        ]);
+        $this->post(route('money-movements.store'), $data)->assertSessionHasNoErrors()->assertRedirect(route('finance.journal', $context));
+        $saved = $legacyReceipt ? route('finance.journal', $context) : route('money-movements.show', MoneyMovement::sole());
+        if ($legacyReceipt) {
+            DB::table('operation_receipts')->where('operation_key', $key)->update(['location' => $saved]);
+        }
+        $balances = fn () => [
+            app(FinancialAccountBalanceService::class)->balanceFor($firstAccount),
+            app(FinancialAccountBalanceService::class)->balanceFor($account),
+            app(SarafLedgerService::class)->balanceFor($firstSaraf),
+            app(SarafLedgerService::class)->balanceFor($saraf),
+            app(PartnerLedgerService::class)->balanceFor($customer),
+        ];
+        $afterPayment = $balances();
+        $this->assertSame(['0.00', $accountRoute ? '7000.00' : '0.00', '0.00', $accountRoute ? '0.00' : '100.00', '-100.00'], $afterPayment);
+
+        $this->post(route('money-movements.store'), $data)->assertRedirect($saved);
+        $record = $this->get($saved)->assertOk()->assertSee(__('common.operation_saved'));
+        $fresh = HTMLDocument::createFromString($record->getContent(), LIBXML_NOERROR)
+            ->querySelector('[data-operation-recovery] a')->getAttribute('href');
+        parse_str(parse_url($fresh, PHP_URL_QUERY), $params);
+        $this->assertEquals(['entry' => 'money', ...$context], $params);
+        $this->assertSame('money-entry', parse_url($fresh, PHP_URL_FRAGMENT));
+        $form = $this->journalMoneyForm($fresh);
+        $this->assertSame($route, $this->selectedValue($form, 'money_route'));
+        $this->assertSame($accountRoute ? (string) $account->id : '', $this->selectedValue($form, 'financial_account_id'));
+        $this->assertSame($accountRoute ? '' : (string) $saraf->id, $form->querySelector('input[name=saraf_id]')->getAttribute('value'));
+        $this->assertSame($accountRoute ? '' : $saraf->name, $form->querySelector('[data-saraf-field] [data-party-query]')->getAttribute('value'));
+        $this->assertSame($data['currency'], $this->selectedValue($form, 'currency'));
+        foreach (['amount', 'counterparty_id', 'exchange_rate_to_usd', 'reference'] as $field) {
+            $this->assertSame('', $form->querySelector("input[name=$field]")->getAttribute('value'));
+        }
+        $freshKey = $form->querySelector('input[name=operation_key]')->getAttribute('value');
+        $this->assertTrue(Str::isUuid($freshKey));
+        $this->assertNotSame($key, $freshKey);
+        $this->assertDatabaseMissing('operation_receipts', ['operation_key' => $freshKey]);
+
+        // A consumed key may be replayed after the operator changes both the route and its ID.
+        $this->post(route('money-movements.store'), array_replace($data, [
+            'money_route' => $accountRoute ? 'saraf' : 'account',
+            'financial_account_id' => $accountRoute ? null : $firstAccount->id,
+            'saraf_id' => $accountRoute ? $firstSaraf->id : null,
+        ]))->assertRedirect($saved)->assertSessionHasErrors('operation_key');
+        $this->get($saved)->assertOk()->assertSee(__('common.operation_conflict'))->assertSee($fresh);
+
+        // The same link must not substitute the first available account or saraf if eligibility changes.
+        if ($accountRoute) {
+            $account->update(['is_active' => false]);
+        } else {
+            $saraf->roles()->where('role', PartnerRole::Saraf->value)->delete();
+        }
+        $form = $this->journalMoneyForm($fresh);
+        $filter = $form->ownerDocument->querySelector('[data-journal-context-form]');
+        $this->assertSame('', $this->selectedValue($filter, $accountRoute ? 'account_id' : 'saraf_id'));
+        $this->assertSame($route, $this->selectedValue($form, 'money_route'));
+        $this->assertSame('', $this->selectedValue($form, 'financial_account_id'));
+        $this->assertSame('', $form->querySelector('input[name=saraf_id]')->getAttribute('value'));
+        $this->assertSame('', $form->querySelector('[data-saraf-field] [data-party-query]')->getAttribute('value'));
+        $this->assertSame($afterPayment, $balances());
+        $this->assertDatabaseCount('money_movements', 1);
+        $this->assertSame(MoneyMovementStatus::Confirmed, MoneyMovement::sole()->status);
+        $this->assertDatabaseCount('operation_receipts', 1);
+        $this->assertDatabaseHas('operation_receipts', ['user_id' => $user->id, 'operation_key' => $key]);
+    }
+
+    #[TestWith(['deal'])]
+    #[TestWith(['accounts'])]
+    public function test_duplicate_payment_from_a_deal_or_partner_profile_keeps_its_entry_page(string $origin): void
+    {
+        [$deal, , $customer, $saraf, $user] = $this->simpleContext('900.00', '1200.00');
+        $data = $this->payload([
+            'deal_id' => $deal->id, 'counterparty_id' => $customer->id, 'saraf_id' => $saraf->id,
+            'return_to' => $origin, 'confirm_now' => 1, 'operation_key' => (string) Str::uuid(),
+        ]);
+        $this->actingAs($user)->post(route('money-movements.store'), $data)->assertSessionHasNoErrors();
+        $saved = route('money-movements.show', MoneyMovement::sole());
+        $this->post(route('money-movements.store'), $data)->assertRedirect($saved);
+        $expected = $origin === 'deal'
+            ? route('deals.show', ['deal' => $deal->id, 'entry' => 'money'])
+            : route('office.accounts', ['partner_id' => $customer->id, 'entry' => 'money']);
+        $this->get($saved)->assertOk()->assertSee($expected.'#money-entry');
+        $this->assertDatabaseCount('money_movements', 1);
+    }
+
     public function test_money_route_rejects_both_or_neither_saraf_and_account(): void
     {
         [$deal, , $customer, $saraf, $user] = $this->simpleContext('1000.00', '1000.00');
@@ -370,6 +484,22 @@ class MoneyMovementWorkflowTest extends TestCase
                 $this->assertDatabaseCount('money_movements', 0);
             }
         }
+    }
+
+    private function journalMoneyForm(string $url): Element
+    {
+        $page = $this->get($url)->assertOk();
+        $form = HTMLDocument::createFromString($page->getContent(), LIBXML_NOERROR)->querySelector('#money-entry[open] form');
+        $this->assertInstanceOf(Element::class, $form);
+
+        return $form;
+    }
+
+    private function selectedValue(Element $form, string $name): string
+    {
+        $select = $form->querySelector("select[name=$name]");
+
+        return ($select->querySelector('option[selected]') ?? $select->querySelector('option'))->getAttribute('value');
     }
 
     private function paymentFields(string $url): Element
