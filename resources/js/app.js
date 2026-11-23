@@ -319,6 +319,11 @@ document.querySelectorAll('[data-journal-context-form]').forEach((form) => {
 document.querySelectorAll('[data-toggle-account-edit]').forEach((button) => {
     button.addEventListener('click', () => {
         const form = document.querySelector('[data-account-edit-form]');
-        if (form) form.hidden = !form.hidden;
+        if (!form) return;
+        form.hidden = !form.hidden;
+        const trigger = document.querySelector('[aria-controls="account-edit"]');
+        trigger?.setAttribute('aria-expanded', String(!form.hidden));
+        if (form.hidden) trigger?.focus();
+        else form.querySelector('[name="name"]')?.focus();
     });
 });
