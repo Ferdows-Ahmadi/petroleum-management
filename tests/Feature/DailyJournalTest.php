@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Enums\ExpenseCategory;
 use App\Enums\FinancialTransactionType;
 use App\Enums\PartnerRole;
+use App\Models\MoneyMovement;
 use App\Services\DailyJournalService;
+use App\Services\PartnerLedgerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesFinanceFixtures;
 use Tests\Concerns\CreatesTradeFixtures;
@@ -88,6 +90,22 @@ class DailyJournalTest extends TestCase
             ->assertSeeInOrder([$received->reference_code, '1,100.50', '1,200.50 USD', $paid->reference_code, '25.25', '1,175.25 USD'])
             ->assertSee(route('payments.show', $paid), false)
             ->assertDontSee($elsewhere->reference_code)->assertDontSee($later->reference_code)->assertDontSee($draft->reference_code);
+    }
+
+    public function test_repeated_movements_share_one_statement_and_show_each_balance_direction(): void
+    {
+        [$account, $user, $partner] = $this->context();
+        foreach ([['CUSTOMER_RECEIPT', '10'], ['SUPPLIER_PAYMENT', '20'], ['CUSTOMER_RECEIPT', '10']] as [$type, $amount]) {
+            MoneyMovement::create([
+                'financial_account_id' => $account->id, 'counterparty_id' => $partner->id,
+                'movement_date' => '2026-08-08', 'movement_type' => $type, 'status' => 'CONFIRMED',
+                'amount' => $amount, 'amount_usd' => $amount, 'currency' => 'USD', 'created_by' => $user->id,
+            ]);
+        }
+        $this->partialMock(PartnerLedgerService::class)->shouldReceive('statementFor')->once()->passthru();
+        $response = $this->actingAs($user)->get(route('finance.journal', ['account_id' => $account->id, 'date' => '2026-08-08']))
+            ->assertOk()->assertSeeInOrder([__('finance.company_owes_partner'), __('finance.partner_owes_company'), __('finance.settled')]);
+        $this->assertSame(['-10.00', '10.00', '0.00'], $response->viewData('summary')['entries']->pluck('remaining_balance')->all());
     }
 
     private function context(): array

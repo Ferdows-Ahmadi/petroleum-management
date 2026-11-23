@@ -128,7 +128,18 @@
                                     <td class="ledger-number">{{ $entry['direction'] === 1 ? $numbers->money($entry['amount']) : '—' }}</td>
                                     <td class="ledger-number">{{ $entry['direction'] === -1 ? $numbers->money($entry['amount']) : '—' }}</td>
                                     <td class="ledger-number"><strong>{{ $numbers->money($entry['running_balance']) }} {{ $currency }}</strong></td>
-                                    <td class="ledger-number">{{ $entry['remaining_balance'] !== null ? $numbers->absoluteMoney($entry['remaining_balance']).' USD' : '—' }}</td>
+                                    <td class="ledger-number">
+                                        @if($entry['remaining_balance'] !== null)
+                                            {{ $numbers->absoluteMoney($entry['remaining_balance']) }} USD
+                                            <div class="td-sub" dir="rtl">{{ match (bccomp($entry['remaining_balance'], '0', 2)) {
+                                                1 => __('finance.partner_owes_company'),
+                                                -1 => __('finance.company_owes_partner'),
+                                                default => __('finance.settled'),
+                                            } }}</div>
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
                                     <td class="ledger-description">{{ $entry['description'] }}</td>
                                     <td class="ledger-description">
                                         @if($isMovement && $source->deal)

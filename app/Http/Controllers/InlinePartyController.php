@@ -16,8 +16,8 @@ class InlinePartyController extends Controller
     {
         $data = $request->validate([
             'partner_id' => ['nullable', 'integer', Rule::exists('business_partners', 'id')->whereNull('deleted_at')],
-            'name' => ['nullable', 'required_without:partner_id', 'string', 'max:200'],
-            'phone' => ['nullable', 'string', 'max:50'],
+            'name' => ['nullable', 'required_without:partner_id', 'string', 'max:150'],
+            'phone' => ['nullable', 'string', 'max:30'],
             'role' => ['required', Rule::in([PartnerRole::Customer->value, PartnerRole::Supplier->value, PartnerRole::Saraf->value])],
         ]);
         $role = PartnerRole::from($data['role']);
