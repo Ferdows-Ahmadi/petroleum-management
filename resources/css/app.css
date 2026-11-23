@@ -302,3 +302,16 @@ button, a, input, select, textarea, summary { outline-color: var(--primary); }
 .deal-route legend { font-size: 12px; font-weight: 650; }
 .deal-route label { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; margin-inline-end: 12px; cursor: pointer; }
 .deal-route input { accent-color: var(--primary); }
+
+.payment-overview, .payment-history, .payment-side, .payment-event > div { min-width: 0; }
+.payment-sides { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-block: 12px; }
+.payment-side { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.payment-side h3 { font-size: 15px; margin: 0 0 8px; }
+.payment-side dl { margin: 0 0 8px; }
+.payment-side dl > div, .payment-event { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding-block: 5px; }
+.payment-side dd { margin: 0; font-variant-numeric: tabular-nums; }
+.payment-side dl > div:last-child { border-top: 1px solid var(--border); font-weight: bold; }
+.payment-event { border-top: 1px solid var(--border); padding-block: 10px; overflow-wrap: anywhere; }
+.payment-event a { text-decoration: underline; }
+#money-entry { scroll-margin-top: calc(var(--topbar) + 12px); }
+@media (max-width: 700px) { .payment-sides { grid-template-columns: 1fr; } }

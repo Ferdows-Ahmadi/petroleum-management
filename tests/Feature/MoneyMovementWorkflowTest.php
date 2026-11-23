@@ -86,6 +86,45 @@ class MoneyMovementWorkflowTest extends TestCase
         $this->assertCount(3, app(PartnerLedgerService::class)->statementFor($customer));
     }
 
+    public function test_partial_payment_entry_replays_once_and_shows_confirmed_totals_and_dated_history(): void
+    {
+        [$deal, $supplier, $customer, $saraf, $user] = $this->simpleContext('750.00', '1000.00');
+        $this->actingAs($user);
+        $receipt = $this->payload([
+            'counterparty_id' => $customer->id, 'saraf_id' => $saraf->id, 'deal_id' => $deal->id,
+            'return_to' => 'deal', 'confirm_now' => 1,
+        ]);
+        foreach ([['500', '2026-09-04', 'Later receipt'], ['300', '2026-09-02', 'Earlier receipt']] as [$amount, $date, $ref]) {
+            $post = array_replace($receipt, ['operation_key' => (string) Str::uuid(), 'amount' => $amount, 'movement_date' => $date, 'reference' => $ref]);
+            $this->post(route('money-movements.store'), $post)->assertSessionHasNoErrors();
+            $this->post(route('money-movements.store'), $post)->assertSessionHasNoErrors();
+        }
+        $this->post(route('money-movements.store'), array_replace($receipt, [
+            'confirm_now' => 0, 'movement_date' => '2026-09-03', 'amount' => '30', 'reference' => 'Draft receipt',
+        ]))->assertSessionHasNoErrors();
+        $this->movement($user, ['movement_type' => 'SUPPLIER_PAYMENT', 'counterparty_id' => $supplier->id,
+            'saraf_id' => $saraf->id, 'deal_id' => $deal->id, 'amount' => '50'], true);
+
+        foreach ([route('deals.show', $deal), route('office.accounts', ['partner_id' => $customer->id])] as $url) {
+            $page = $this->get($url)->assertOk()->assertSeeInOrder(['Earlier receipt', 'Draft receipt', 'Later receipt']);
+            $dom = HTMLDocument::createFromString($page->getContent(), LIBXML_NOERROR);
+            $summary = $dom->querySelector('[data-payment-side="CUSTOMER_RECEIPT"]');
+            $amounts = [];
+            foreach ($summary->querySelectorAll('dd') as $value) {
+                $amounts[] = trim($value->textContent);
+            }
+            $this->assertSame(['1,000.00 USD', '800.00 USD', '200.00 USD'], $amounts);
+            $this->assertStringContainsString(MoneyMovementStatus::Draft->label(), $dom->querySelector('.payment-history')->textContent);
+        }
+        $supplierPage = $this->get(route('office.accounts', ['partner_id' => $supplier->id, 'entry' => 'money', 'direction' => 'SUPPLIER_PAYMENT']))->assertOk();
+        $dom = HTMLDocument::createFromString($supplierPage->getContent(), LIBXML_NOERROR);
+        $this->assertStringContainsString('700.00 USD', $dom->querySelector('[data-payment-side="SUPPLIER_PAYMENT"]')->textContent);
+        $this->assertSame('SUPPLIER_PAYMENT', $this->selectedValue($dom->querySelector('#money-entry form'), 'movement_type'));
+        $this->assertSame('', $this->selectedValue($dom->querySelector('#money-entry form'), 'money_route'));
+        $this->assertDatabaseCount('money_movements', 4);
+        $this->assertSame('200.00', app(PartnerLedgerService::class)->balanceFor($customer));
+    }
+
     public function test_multiple_sarafs_each_receive_only_their_own_effect(): void
     {
         [$deal, , $customer, $sarafC, $user] = $this->simpleContext('1000.00', '1000.00');
@@ -121,6 +160,8 @@ class MoneyMovementWorkflowTest extends TestCase
 
         $this->assertSame('-100.00', app(PartnerLedgerService::class)->balanceFor($customer));
         $this->assertSame('-100.00', app(DealMoneySummaryService::class)->forDeal($deal)['remaining_receivable']);
+        $this->actingAs($user)->get(route('deals.show', $deal))->assertOk()->assertSee('اعتبار مشتری')->assertSee('100.00 USD');
+        $this->get(route('office.accounts', ['partner_id' => $customer->id]))->assertOk()->assertSee('اعتبار مشتری');
     }
 
     public function test_money_movement_never_fabricates_trade_or_inventory_rows(): void

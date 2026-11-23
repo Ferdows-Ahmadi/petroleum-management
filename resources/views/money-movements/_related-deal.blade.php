@@ -14,6 +14,9 @@
             <option value="{{ $item->id }}" @selected($selectedDealId === $item->id)>{{ \App\Support\RelatedDeals::label($item) }}</option>
         @endforeach
     </select>
+    @if($explicitRoute ?? false)
+        <p class="field-hint" data-selected-deal aria-live="polite"></p>
+    @endif
     @unless($contextDeal)
         <button class="btnx btn-lightx" type="button" data-more-deals hidden>معامله‌های بیشتر</button>
         <span class="field-hint" role="status" data-deal-status></span>

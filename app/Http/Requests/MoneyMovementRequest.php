@@ -27,6 +27,15 @@ class MoneyMovementRequest extends FormRequest
         return true;
     }
 
+    public function messages(): array
+    {
+        return [
+            'amount.required' => 'مبلغ همین دریافت یا پرداخت را وارد کنید.',
+            'amount.regex' => 'مبلغ را با حداکثر دو رقم اعشار وارد کنید.',
+            'exchange_rate_to_usd.required_if' => 'برای ثبت مبلغ افغانی، نرخ یک دالر به افغانی را وارد کنید.',
+        ];
+    }
+
     public function rules(): array
     {
         return [

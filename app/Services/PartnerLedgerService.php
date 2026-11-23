@@ -81,6 +81,28 @@ class PartnerLedgerService
             });
     }
 
+    /** Collect separate receivable and payable totals from the confirmed USD statement. */
+    public function paymentSummary(Collection $statement): array
+    {
+        $summary = array_fill_keys(['sale_receivable', 'purchase_obligation', 'received_from_customer', 'paid_to_supplier'], '0.00');
+        foreach ($statement as $entry) {
+            $key = match ($entry['type']) {
+                'OPENING_BALANCE' => bccomp($entry['effect'], '0', 2) < 0 ? 'purchase_obligation' : 'sale_receivable',
+                'SALE', 'DEAL_DESTINATION' => 'sale_receivable',
+                'PURCHASE', 'DEAL_SOURCE' => 'purchase_obligation',
+                'CUSTOMER_RECEIPT', 'PAYMENT_RECEIVED' => 'received_from_customer',
+                'SUPPLIER_PAYMENT', 'PAYMENT_PAID' => 'paid_to_supplier',
+            };
+            $summary[$key] = in_array($key, ['purchase_obligation', 'received_from_customer'], true)
+                ? bcsub($summary[$key], $entry['effect'], 2)
+                : bcadd($summary[$key], $entry['effect'], 2);
+        }
+        $summary['remaining_receivable'] = bcsub($summary['sale_receivable'], $summary['received_from_customer'], 2);
+        $summary['remaining_payable'] = bcsub($summary['purchase_obligation'], $summary['paid_to_supplier'], 2);
+
+        return $summary;
+    }
+
     public function balanceFor(BusinessPartner $partner): string
     {
         return $this->statementFor($partner)->last()['running_balance'] ?? '0.00';

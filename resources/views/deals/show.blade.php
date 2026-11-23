@@ -21,6 +21,18 @@
 
     <div class="detail-grid">
         <div class="stack">
+            @if($canViewMoney)
+                @php($canEnterPayment = $canRecordMoney && $deal->status === \App\Enums\DealStatus::Completed)
+                @include('money-movements._overview', ['totals' => $finance, 'profile' => false, 'allowReceipt' => $canEnterPayment, 'allowPayment' => $canEnterPayment])
+                @if($canEnterPayment)
+                    @php($movementTypes = [\App\Enums\MoneyMovementType::CustomerReceipt, \App\Enums\MoneyMovementType::SupplierPayment])
+                    @include('money-movements._partial-entry', [
+                        'origin' => 'deal', 'counterparty' => null,
+                        'commercialParties' => $partners->whereIn('id', $deal->sources->pluck('supplier_id')->merge($deal->destinations->pluck('customer_id'))),
+                    ])
+                @endif
+                @include('money-movements._history', ['history' => $finance['movements']->reverse(), 'profile' => false])
+            @endif
             <section class="cardx card-pad">
                 <div class="section-head"><div><div class="section-title">{{ $deal->reference_code }}</div><div class="card-sub">@jalali($deal->deal_date) · {{ $deal->product?->name ?: __('common.not_available') }}</div></div><span class="badge {{ match($deal->status) { \App\Enums\DealStatus::Completed => 'badge-green', \App\Enums\DealStatus::InProgress => 'badge-blue', \App\Enums\DealStatus::Cancelled => 'badge-red', default => 'badge-amber' } }}">{{ $deal->status->label() }}</span></div>
                 <div class="info-list">
@@ -97,17 +109,7 @@
                 </section>
             @endif
 
-            @if($canViewMoney)
-                <section class="cardx card-pad"><div class="section-head"><div><div class="section-title">{{ __('settlements.financial_section') }}</div><div class="card-sub">{{ __('finance.money_movement') }} · <span class="badge {{ $finance['settlement_state'] === 'SETTLED' ? 'badge-green' : ($finance['settlement_state'] === 'PARTIAL' ? 'badge-amber' : 'badge-gray') }}">{{ __('finance.settlement_states.'.$finance['settlement_state']) }}</span></div></div></div><div class="info-list"><div class="info-item"><div class="info-label">{{ __('finance.purchase_obligation') }}</div><div class="info-value ltr-value">{{ app(\App\Support\NumberFormat::class)->money($finance['purchase_obligation']) }} USD</div></div><div class="info-item"><div class="info-label">{{ __('finance.paid_to_supplier') }}</div><div class="info-value ltr-value">{{ app(\App\Support\NumberFormat::class)->money($finance['paid_to_supplier']) }} USD</div></div><div class="info-item"><div class="info-label">{{ __('finance.remaining_payable') }}</div><div class="info-value ltr-value">{{ app(\App\Support\NumberFormat::class)->money($finance['remaining_payable']) }} USD</div></div><div class="info-item"><div class="info-label">{{ __('finance.sale_receivable') }}</div><div class="info-value ltr-value">{{ app(\App\Support\NumberFormat::class)->money($finance['sale_receivable']) }} USD</div></div><div class="info-item"><div class="info-label">{{ __('finance.received_from_customer') }}</div><div class="info-value ltr-value">{{ app(\App\Support\NumberFormat::class)->money($finance['received_from_customer']) }} USD</div></div><div class="info-item"><div class="info-label">{{ __('finance.remaining_receivable') }}</div><div class="info-value ltr-value">{{ app(\App\Support\NumberFormat::class)->money($finance['remaining_receivable']) }} USD</div></div></div>
-                    @if($finance['movements']->isNotEmpty())<div class="table-wrap"><table class="tablex"><thead><tr><th>{{ __('finance.transaction_date') }}</th><th>{{ __('finance.transaction_type') }}</th><th>{{ __('finance.partner') }}</th><th>{{ __('finance.money_route') }}</th><th>{{ __('finance.amount') }}</th></tr></thead><tbody>@foreach($finance['movements'] as $movement)<tr><td class="ltr-value">@jalali($movement->movement_date)</td><td><a href="{{ route('money-movements.show', $movement) }}">{{ $movement->movement_type->label() }}</a></td><td>{{ $movement->counterparty?->name ?: '—' }}</td><td>{{ $movement->saraf?->name ?: $movement->account?->name }}</td><td class="ltr-value">{{ app(\App\Support\NumberFormat::class)->money($movement->amount) }} {{ $movement->currency->value }}</td></tr>@endforeach</tbody></table></div>@endif
-                </section>
-                @if($canRecordMoney && $deal->status === \App\Enums\DealStatus::Completed)
-                    @php($moneyInvalid = $errors->any() && old('return_to') === 'deal')
-                    @php($movementTypes = [\App\Enums\MoneyMovementType::CustomerReceipt, \App\Enums\MoneyMovementType::SupplierPayment])
-                    @php($partners = $deal->sources->pluck('supplier')->filter()->merge($deal->destinations->pluck('customer')->filter())->unique('id')->values())
-                    <details id="money-entry" class="cardx card-pad office-money-actions" @if(request('entry') === 'money' || $moneyInvalid) open @endif><summary class="section-title">{{ __('finance.create_payment') }}</summary><form method="POST" action="{{ route('money-movements.store') }}">@csrf<input type="hidden" name="confirm_now" value="1"><input type="hidden" name="return_to" value="deal">@include('money-movements._fields', ['moneyMovement' => null, 'counterparty' => null, 'restoreMovementInput' => $moneyInvalid])<div class="form-actions"><button class="btnx btn-primaryx">{{ __('office.confirm_now') }}</button></div></form></details>
-                @endif
-            @endif
+
         </div>
 
         @if($canViewSettlement)<aside class="stack"><section class="cardx card-pad sticky-summary"><div class="card-title">{{ __('deals.summary') }}</div><div class="calc-line"><span>{{ __('deals.source_cost') }}</span><strong class="ltr-value">{{ $deal->total_source_cost !== null ? app(\App\Support\NumberFormat::class)->money($deal->total_source_cost).' USD' : '—' }}</strong></div><div class="calc-line"><span>{{ __('deals.destination_amount') }}</span><strong class="ltr-value">{{ app(\App\Support\NumberFormat::class)->money($deal->total_destination_amount) }} USD</strong></div>@if($hasDirectMargin)<div class="calc-line"><span>{{ __('deals.gross_margin') }}</span><strong class="calc-total ltr-value">{{ app(\App\Support\NumberFormat::class)->money($margin) }} USD</strong></div>@endif @if($canViewSettlement && $deal->latestConfirmedSettlement)<div class="calc-line settlement-side-final"><span>{{ __('settlements.final_result') }}</span><strong class="ltr-value">{{ app(\App\Support\NumberFormat::class)->money($deal->latestConfirmedSettlement->final_result_usd) }} USD</strong></div>@endif</section></aside>@endif

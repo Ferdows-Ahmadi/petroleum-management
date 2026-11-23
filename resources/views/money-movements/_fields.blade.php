@@ -3,7 +3,7 @@
     $moneyOld = fn (string $field, mixed $default = null): mixed => $restoreMovementInput ? old($field, $default) : ($journalMoneyDefaults[$field] ?? $default);
     $movement = $moneyMovement ?? null;
     $selectedType = $moneyOld('movement_type', $movement?->movement_type?->value ?? ($defaultType ?? 'CUSTOMER_RECEIPT'));
-    $selectedRoute = $moneyOld('money_route', $movement ? ($movement->saraf_id ? 'saraf' : 'account') : ($sarafs->isNotEmpty() ? 'saraf' : 'account'));
+    $selectedRoute = $moneyOld('money_route', $movement ? ($movement->saraf_id ? 'saraf' : 'account') : (($explicitRoute ?? false) ? '' : ($sarafs->isNotEmpty() ? 'saraf' : 'account')));
     [$partyRole, $contextParty] = match ($selectedType) {
         'CUSTOMER_RECEIPT' => ['CUSTOMER', $defaultCustomerId ?? null],
         'SUPPLIER_PAYMENT' => ['SUPPLIER', $defaultSupplierId ?? null],
@@ -14,9 +14,9 @@
     }
 @endphp
 <x-operation-key :preserve="$restoreMovementInput" />
-<div class="office-form-grid compact-grid" data-money-movement-fields @isset($deal) data-deal-id="{{ $deal->id }}" data-customer-id="{{ $defaultCustomerId }}" data-supplier-id="{{ $defaultSupplierId }}" @endisset>
-    <div class="field"><label>{{ __('finance.transaction_date') }}</label><input class="control ltr-value" name="movement_date" value="{{ $moneyOld('movement_date', $movement?->movement_date ? app(\App\Support\JalaliDate::class)->format($movement->movement_date) : app(\App\Support\JalaliDate::class)->format(now())) }}" required>@if($restoreMovementInput)<x-field-error name="movement_date" />@endif</div>
-    <div class="field"><label>{{ __('finance.transaction_type') }}</label><select class="control" name="movement_type" required>@foreach($movementTypes as $type)<option value="{{ $type->value }}" @selected($selectedType === $type->value)>{{ $type->label() }}</option>@endforeach</select>@if($restoreMovementInput)<x-field-error name="movement_type" />@endif</div>
+<div class="office-form-grid compact-grid" data-money-movement-fields @if($explicitRoute ?? false) data-partial-payment @endif @isset($deal) data-deal-id="{{ $deal->id }}" data-customer-id="{{ $defaultCustomerId }}" data-supplier-id="{{ $defaultSupplierId }}" @endisset>
+    <div class="field"><label for="movement_movement_date">{{ __('finance.transaction_date') }}</label><input class="control ltr-value" name="movement_date" id="movement_movement_date" value="{{ $moneyOld('movement_date', $movement?->movement_date ? app(\App\Support\JalaliDate::class)->format($movement->movement_date) : app(\App\Support\JalaliDate::class)->format(now())) }}" required>@if($restoreMovementInput)<x-field-error name="movement_date" />@endif</div>
+    <div class="field"><label for="movement_movement_type">{{ __('finance.transaction_type') }}</label><select class="control" name="movement_type" id="movement_movement_type" required>@foreach($movementTypes as $type)<option value="{{ $type->value }}" @selected($selectedType === $type->value)>{{ $type->label() }}</option>@endforeach</select>@if($restoreMovementInput)<x-field-error name="movement_type" />@endif</div>
     @if(isset($counterparty) && $counterparty)
         <div class="field" data-fixed-counterparty>
             <div class="info-label">{{ __('finance.partner') }}</div>
@@ -25,12 +25,12 @@
         </div>
         @if($restoreMovementInput)<x-field-error name="counterparty_id" />@endif
     @else
-        <x-party-combobox name="counterparty_id" :label="__('finance.partner')" :role="$partyRole" :required="$partyRole !== ''" :parties="$partners" :selected-id="$moneyOld('counterparty_id', $movement?->counterparty_id ?? $contextParty)" :restore-input="$restoreMovementInput" data-money-party-combo />
+        <x-party-combobox :show-reference="true" name="counterparty_id" :label="__('finance.partner')" :role="$partyRole" :required="$partyRole !== ''" :parties="$commercialParties ?? $partners" :selected-id="$moneyOld('counterparty_id', $movement?->counterparty_id ?? $contextParty)" :restore-input="$restoreMovementInput" data-money-party-combo />
     @endif
     @include('money-movements._related-deal')
-    <div class="field"><label>{{ __('finance.money_route') }}</label><select class="control" name="money_route" data-money-route><option value="saraf" @selected($selectedRoute === 'saraf')>{{ __('finance.through_saraf') }}</option><option value="account" @selected($selectedRoute === 'account')>{{ __('finance.through_account') }}</option></select>@if($restoreMovementInput)<x-field-error name="money_route" />@endif</div>
+    <div class="field"><label for="movement_money_route">{{ __('finance.money_route') }}</label><select class="control" name="money_route" id="movement_money_route" data-money-route required>@if($explicitRoute ?? false)<option value="">مسیر پول را انتخاب کنید</option>@endif<option value="saraf" @selected($selectedRoute === 'saraf')>{{ __('finance.through_saraf') }}</option><option value="account" @selected($selectedRoute === 'account')>{{ __('finance.through_account') }}</option></select>@if($restoreMovementInput)<x-field-error name="money_route" />@endif</div>
     <div data-saraf-field><x-party-combobox name="saraf_id" :label="__('finance.saraf')" role="SARAF" :parties="$partners" :selected-id="$moneyOld('saraf_id', $movement?->saraf_id)" :restore-input="$restoreMovementInput" /></div>
-    <div class="field" data-account-field><label>{{ __('finance.financial_account') }}</label><select class="control" name="financial_account_id"><option value="">—</option>@foreach($accounts as $accountItem)<option value="{{ $accountItem->id }}" @selected((int) $moneyOld('financial_account_id', $movement?->financial_account_id) === $accountItem->id)>{{ $accountItem->name }} · {{ $accountItem->currency->value }}</option>@endforeach</select>@if($restoreMovementInput)<x-field-error name="financial_account_id" />@endif
+    <div class="field" data-account-field><label for="movement_financial_account_id">{{ __('finance.financial_account') }}</label><select class="control" name="financial_account_id" id="movement_financial_account_id"><option value="">—</option>@foreach($accounts as $accountItem)<option value="{{ $accountItem->id }}" @selected((int) $moneyOld('financial_account_id', $movement?->financial_account_id) === $accountItem->id)>{{ $accountItem->name }} · {{ $accountItem->currency->value }}</option>@endforeach</select>@if($restoreMovementInput)<x-field-error name="financial_account_id" />@endif
         @if($accounts->isEmpty())
             <p class="field-hint">برای ثبت پول از مسیر حساب مالی، ابتدا حساب صندوق یا بانک با واحد پول درست ثبت شود. مسیر صراف تنها برای پول واقعاً مربوط به صراف است.</p>
             @if(auth()->user()->hasAnyRole('GENERAL_MANAGER'))
@@ -40,9 +40,9 @@
             @endif
         @endif
     </div>
-    <div class="field"><label>{{ __('finance.currency') }}</label><select class="control ltr-value" name="currency" required>@foreach(\App\Enums\Currency::cases() as $currency)<option value="{{ $currency->value }}" @selected($moneyOld('currency', $movement?->currency?->value ?? 'USD') === $currency->value)>{{ $currency->value }}</option>@endforeach</select>@if($restoreMovementInput)<x-field-error name="currency" />@endif</div>
-    <div class="field"><label>{{ __('finance.amount') }}</label><input class="control ltr-value" name="amount" value="{{ $moneyOld('amount', $movement?->amount) }}" inputmode="decimal" required>@if($restoreMovementInput)<x-field-error name="amount" />@endif</div>
-    <div class="field"><label>{{ __('finance.exchange_rate') }} (AFN/USD)</label><input class="control ltr-value" name="exchange_rate_to_usd" value="{{ $moneyOld('exchange_rate_to_usd', $movement?->exchange_rate_to_usd) }}" inputmode="decimal">@if($restoreMovementInput)<x-field-error name="exchange_rate_to_usd" />@endif</div>
-    <div class="field"><label>{{ __('common.reference') }}</label><input class="control" name="reference" value="{{ $moneyOld('reference', $movement?->reference) }}">@if($restoreMovementInput)<x-field-error name="reference" />@endif</div>
+    <div class="field"><label for="movement_currency">{{ __('finance.currency') }}</label><select class="control ltr-value" name="currency" id="movement_currency" required>@foreach(\App\Enums\Currency::cases() as $currency)<option value="{{ $currency->value }}" @selected($moneyOld('currency', $movement?->currency?->value ?? 'USD') === $currency->value)>{{ $currency->value }}</option>@endforeach</select>@if($restoreMovementInput)<x-field-error name="currency" />@endif</div>
+    <div class="field"><label for="movement_amount">مبلغ این دریافت / پرداخت</label><input class="control ltr-value" name="amount" id="movement_amount" value="{{ $moneyOld('amount', $movement?->amount) }}" inputmode="decimal" required>@if($restoreMovementInput)<x-field-error name="amount" />@endif</div>
+    <div class="field"><label for="movement_exchange_rate_to_usd">{{ __('finance.exchange_rate') }} (AFN/USD)</label><input class="control ltr-value" name="exchange_rate_to_usd" id="movement_exchange_rate_to_usd" aria-describedby="movement_rate_hint" value="{{ $moneyOld('exchange_rate_to_usd', $movement?->exchange_rate_to_usd) }}" inputmode="decimal"><small class="field-hint" id="movement_rate_hint">برای مبلغ افغانی، نرخ یک دالر را وارد کنید.</small>@if($restoreMovementInput)<x-field-error name="exchange_rate_to_usd" />@endif</div>
+    <div class="field"><label for="movement_reference">{{ __('common.reference') }}</label><input class="control" name="reference" id="movement_reference" value="{{ $moneyOld('reference', $movement?->reference) }}">@if($restoreMovementInput)<x-field-error name="reference" />@endif</div>
     <div class="field span-2"><label for="movement_notes">{{ __('common.notes') }}</label><textarea id="movement_notes" class="control" name="notes" rows="3" dir="auto">{{ $moneyOld('notes', $movement?->notes) }}</textarea>@if($restoreMovementInput)<x-field-error name="notes" />@endif</div>
 </div>

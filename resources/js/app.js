@@ -273,10 +273,27 @@ document.querySelectorAll('[data-money-movement-fields]').forEach((scope) => {
             if (!enabled) control.value = '';
         });
     };
+    const currency = scope.querySelector('[name="currency"]');
+    const rate = scope.querySelector('[name="exchange_rate_to_usd"]');
+    const selectedDeal = scope.querySelector('[data-selected-deal]');
+    if (selectedDeal) {
+        const deal = scope.querySelector('[name="deal_id"]');
+        const showDeal = () => {
+            selectedDeal.textContent = deal.value ? deal.selectedOptions[0].textContent : 'این مبلغ به معامله مشخصی وصل نیست.';
+        };
+        deal.addEventListener('change', showDeal);
+        showDeal();
+    }
     const synchronize = () => {
         toggle(sarafField, route?.value === 'saraf');
         toggle(accountField, route?.value === 'account');
+        if (scope.hasAttribute('data-partial-payment')) {
+            sarafField.querySelector('[data-party-query]').required = route.value === 'saraf';
+            accountField.querySelector('select').required = route.value === 'account';
+            rate.required = currency.value === 'AFN';
+        }
     };
+    currency.addEventListener('change', synchronize);
     route?.addEventListener('change', synchronize);
     synchronize();
 });
