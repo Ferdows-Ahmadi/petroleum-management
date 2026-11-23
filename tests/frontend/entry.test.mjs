@@ -13,7 +13,7 @@ function preventsEnter(method, tagName, type, isComposing = false) {
 }
 
 test('Enter in transaction text, search, amount, and date inputs cannot submit a POST', () => {
-    for (const type of ['text', 'search', 'number', 'date']) assert.ok(preventsEnter('post', 'INPUT', type));
+    for (const type of ['text', 'search', 'number', 'date', 'radio']) assert.ok(preventsEnter('post', 'INPUT', type));
 });
 
 test('GET search, multiline notes, explicit buttons, selects and IME composition retain Enter', () => {

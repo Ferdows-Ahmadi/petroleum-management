@@ -44,5 +44,5 @@
     <div class="field"><label>{{ __('finance.amount') }}</label><input class="control ltr-value" name="amount" value="{{ $moneyOld('amount', $movement?->amount) }}" inputmode="decimal" required>@if($restoreMovementInput)<x-field-error name="amount" />@endif</div>
     <div class="field"><label>{{ __('finance.exchange_rate') }} (AFN/USD)</label><input class="control ltr-value" name="exchange_rate_to_usd" value="{{ $moneyOld('exchange_rate_to_usd', $movement?->exchange_rate_to_usd) }}" inputmode="decimal">@if($restoreMovementInput)<x-field-error name="exchange_rate_to_usd" />@endif</div>
     <div class="field"><label>{{ __('common.reference') }}</label><input class="control" name="reference" value="{{ $moneyOld('reference', $movement?->reference) }}">@if($restoreMovementInput)<x-field-error name="reference" />@endif</div>
-    <div class="field span-2"><label>{{ __('common.notes') }}</label><textarea class="control" name="notes">{{ $moneyOld('notes', $movement?->notes) }}</textarea>@if($restoreMovementInput)<x-field-error name="notes" />@endif</div>
+    <div class="field span-2"><label for="movement_notes">{{ __('common.notes') }}</label><textarea id="movement_notes" class="control" name="notes" rows="3" dir="auto">{{ $moneyOld('notes', $movement?->notes) }}</textarea>@if($restoreMovementInput)<x-field-error name="notes" />@endif</div>
 </div>
