@@ -1,0 +1,52 @@
+راهنمای کوتاه نگهداری ـ برای برنامه‌نویس بعدی
+
+لایه ساده Windows: FIRST_SETUP.ps1 نصب تازه را هدایت می‌کند؛ handoff/INSTALL_BRIDGE.php فقط از stdin خصوصی معلومات می‌گیرد، schema خالی را بررسی و همان فرمان app:create-manager با ورودی حافظه را اجرا می‌کند. قواعد صلاحیت/محاسبه تجارتی تغییر نکرده‌اند. ورودی حافظه از خطای code-page و hiddeninput در نصب پس‌زمینه Windows و مسیر دری جلوگیری می‌کند.
+START_SYSTEM.bat → handoff/RUN_DAILY.ps1 از تنظیمات محلی بدون رمز .company-runtime.json استفاده می‌کند، صحت نصب را بررسی، اجرای loopback را مخفی شروع و مرورگر را باز می‌کند. WMI با هویت همان کاربر و بدون elevation، پروسه مستقل از عمر پنجره شروع می‌سازد. handoff/LOCAL_SERVER.php محیط والد را پاک و فقط تنظیمات همین نصب را می‌خواند. PID، زمان ایجاد و مالک listener برای جلوگیری از اشتباه با برنامه دیگر بررسی می‌شوند؛ کلیک تکراری اجرای تازه نمی‌سازد. لاگ اجرا در storage/logs و وضعیت PID در storage/app/daily-runtime.json است. برنامه‌های دیگر یا تمام php.exeها را متوقف نکنید. برای توقف تخنیکی تنها PID و زمان ثبت‌شده همین نصب را با listener آن تأیید کنید و همان process را متوقف کنید.
+BACKUP_SYSTEM.bat → handoff/RUN_BACKUP.ps1 از app:backup موجود استفاده می‌کند؛ mutex مانع دو پشتیبان همزمان از میانبر می‌شود. روش قدیمی BACKUP_SYSTEM.ps1 برای مقصد سفارشی محفوظ است. رمز در آرگومان، میانبر، تنظیمات runtime یا پشتیبان نیست؛ تنظیمات نصب در .env خصوصی می‌ماند. محیط shell والد نمی‌تواند DB_URL یا متغیرهای دیتابیس خود را به این راه‌انداز تحمیل کند.
+برای استفاده دوامدار چندکمپیوتری، وب‌سرور HTTPS و میانبر URL کاربران را نصب‌کننده آماده کند. میانبر محلی ساده از وب‌سرور آزمایشی PHP روی loopback استفاده می‌کند؛ firewall و اینترنت را باز نمی‌کند.
+
+پشتیبان mysqldump از stdout به فایل بازشده با PHP جریان می‌یابد و خروجی پس از هر قطعه از حافظه پاک می‌شود؛ --result-file در مسیر دری Windows قابل اتکا نیست. بازیابی با stdin و فایل بازشده PHP انجام می‌شود. آزمون MySqlBackupRestoreTest مسیر دارای فاصله و دری را شامل می‌سازد و اطلاعات/فایل‌های خصوصی و عمومی را واقعاً برمی‌گرداند. میانبرها با ShellLinkW بومی Windows ذخیره می‌شوند تا نام دری و مسیر نصب دری حفظ گردد. فایل‌های BAT باید CRLF بدون BOM و PS1 باید UTF-8 با BOM باشند؛ .gitattributes بایت‌های BAT را در git archive حفظ می‌کند.
+
+این بسته سورس Laravel، Blade/Bootstrap RTL، JavaScript، migrations، tests، vendor و فایل‌های ساخته‌شده Vite را دارد. Composer/npm تنها هنگام توسعه یا تجدید وابستگی/رابط لازم‌اند.
+منطق تجارتی در app/Services، صلاحیت در routes/middleware/controllers و فورم‌های دری در resources/views است. مقادیر مالی DECIMAL/BCMath هستند؛ محاسبه مرورگر صرفاً پیش‌نمایش است.
+مقدار kg، نرخ USD/تن متریک، تاریخ قابل مشاهده هجری شمسی و زمان Asia/Kabul است.
+جریان مستقیم گردش ذخیره نمی‌سازد. تصفیه تجارتی از پول واقعی جداست. آخرین تصفیه تأییدشده نتیجه مؤثر است؛ پیش‌نویس جدید آن را حذف نمی‌کند.
+نام اشخاص ممکن است مشابه باشد. فورم جاری کلید ثبت برای جلوگیری از ارسال تکراری دارد؛ درخواست قدیمی بدون کلید این تضمین را ندارد.
+MySQL session از READ COMMITTED همراه قفل‌های تجارتی استفاده می‌کند؛ تغییر آن بدون آزمون همزمانی خطرناک است.
+
+بررسی نسخه جدید فقط در محیط جدا، با معلومات ساختگی:
+1. یک schema خالی با نام petroleum_management_test و schema بازیابی خالی petroleum_management_restore_test بسازید.
+2. حساب آزمون فقط روی این دو schema صلاحیت ساخت/تغییر و خواندن/نوشتن داشته باشد. رمز در .env محیط آزمون بماند.
+3. phpunit.mysql.xml فقط schema آزمون را به صورت اجباری انتخاب می‌کند. آزمون همزمانی آن را reset می‌کند؛ هرگز این نام را برای معلومات واقعی به کار نبرید.
+4. آزمون پشتیبان/بازیابی در schemaهای اختصاصی و فولدرهای testing انجام می‌شود.
+
+فرمان‌ها:
+composer install
+npm ci
+php vendor/bin/phpunit --configuration=phpunit.mysql.xml
+node --test tests/frontend/decimal.test.mjs
+php vendor/bin/pint --test
+composer validate --strict
+composer audit --locked
+npm audit
+php artisan view:cache
+npm run build
+
+وابستگی‌ها قفل شده‌اند. نسخه PHP بسته 8.5.x است. برای ساخت مجدد، Composer و Node/npm سازگار با package-lock لازم‌اند؛ نسخه ابزار آزمایش‌شده در manifest درج می‌شود.
+برای تست تکمیلی SQLite، pdo_sqlite لازم است؛ آزمون همزمانی MySQL در آن اجرا نمی‌شود.
+Tests/Fixtures/DemoSeeder فقط معلومات ساختگی آزمون را می‌سازد و در production رد می‌شود؛ رمزهای آن تصادفی و قابل استفاده به عنوان حساب شرکت نیستند. DatabaseSeeder عادی کاربر/معامله نمی‌سازد.
+
+ساخت بسته:
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-company-release.ps1
+این فرمان release تولیدی قبلی را در مسیر معین خود بازسازی می‌کند. آن را روی بسته شرکت که معلومات واقعی/تنظیمات گرفته اجرا نکنید.
+پس از آزمون کپی جدا، commit/tag و ساخت از commit دقیق:
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-company-release.ps1 -Commit نام_commit
+vendor و public/build باید با lock/source همان commit ساخته شده باشند.
+فایل‌های خصوصی، .env، .git، node_modules، دیتابیس، logs، cacheهای نصب و اسناد بارگذاری‌شده به بسته منتقل نمی‌شوند.
+SOURCE_FILES.sha256.txt امکان تطبیق سورس بسته را فراهم می‌کند.
+SHA-256 ZIP در manifest جدا از ZIP قرار می‌گیرد؛ فایل ZIP نمی‌تواند checksum نهایی خودش را در داخل خود نگه دارد.
+
+پشتیبان/بازیابی از mysql/mysqldump با رمز فقط در محیط پروسه فرزند استفاده می‌کند. dump با single-transaction بدون tablespaces/GTID/trigger بیرونی ساخته می‌شود. برنامه جدول InnoDB و trigger/routine سفارشی ندارد. افزودن trigger/routine یا دیتابیس دیگر به بازبینی پشتیبان نیاز دارد.
+خطای بازیابی ممکن است هدف جدید را نیمه‌کامل کند؛ هدف اصلی حفظ می‌شود و بازیابی ناموفق بسته می‌ماند. از هدف خالی جدا دوباره تلاش کنید.
+توقف کار کاربران قبل از پشتیبان لازم است؛ maintenance جلوی درخواست تازه را می‌گیرد، اما جای هماهنگی ثبت در حال اجرا را نمی‌گیرد.
+جلسه‌ها/کلید .env را عمومی نسازید. برای استفاده دوامدار، HTTPS، وب‌سرور مناسب، backup دوره‌ای، بررسی restore و آزمون بار واقعی تنظیم شود.

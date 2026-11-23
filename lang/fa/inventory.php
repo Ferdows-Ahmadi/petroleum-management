@@ -1,0 +1,32 @@
+<?php
+
+return [
+    'all_products' => 'همه محصولات',
+    'balances' => 'موجودی ذخایر',
+    'balances_subtitle' => 'موجودی محاسبه‌شده از گردش ذخیره به تفکیک ذخیره و محصول',
+    'movements' => 'گردش ذخیره',
+    'movements_subtitle' => 'تاریخچه تغییرات واقعی موجودی و مرجع هر معامله',
+    'movement_type' => 'نوع حرکت',
+    'occurred_at' => 'زمان ثبت',
+    'source' => 'مرجع معامله',
+    'balance' => 'موجودی',
+    'calculated_notice' => 'این مقدار از حرکات موجودی محاسبه می‌شود و قابل ویرایش نیست.',
+    'workspace_subtitle' => 'موجودی، ارزش تقریبی و گردش هر ذخیره در یک محل',
+    'workspace_notice' => 'خرید و فروش تأییدشده منبع گردش است؛ هیچ موجودی دستی در این صفحه ثبت نمی‌شود.',
+    'total_incoming' => 'مجموع ورودی',
+    'total_outgoing' => 'مجموع خروجی',
+    'incoming' => 'ورودی',
+    'outgoing' => 'خروجی',
+    'approximate_value' => 'ارزش تقریبی',
+    'storage_claim' => 'طلب بالای ذخیره',
+    'source_value' => 'ارزش ورودی',
+    'issue_value' => 'ارزش فروش و خروجی',
+    'claim_explanation' => 'مقدار مثبت هزینه بازیافت‌نشده و مقدار منفی مازاد ناخالص ذخیره را نشان می‌دهد.',
+    'recent_movements' => 'گردش اخیر ذخیره',
+    'movement_types' => [
+        'PURCHASE_IN' => 'ورودی خرید',
+        'SALE_OUT' => 'خروجی فروش',
+        'DEAL_STORAGE_IN' => 'ورودی از تصفیه معامله',
+        'DEAL_STORAGE_OUT' => 'خروجی به معامله',
+    ],
+];

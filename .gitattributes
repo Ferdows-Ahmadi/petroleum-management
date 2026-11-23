@@ -1,0 +1,13 @@
+* text=auto eol=lf
+# Keep Windows batch CRLF bytes intact in git archive release packages.
+*.bat -text whitespace=cr-at-eol
+
+*.blade.php diff=html
+*.css diff=css
+*.html diff=html
+*.md diff=markdown
+*.php diff=php
+
+/.github export-ignore
+CHANGELOG.md export-ignore
+.styleci.yml export-ignore
