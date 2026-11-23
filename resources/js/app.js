@@ -2,6 +2,7 @@ import { tradeCents, tradePreviewCents, formatCents, netWeight, scaled, formatWe
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import { preventImplicitEntrySubmit } from './entry-keyboard.js';
 import { initializePartyCombobox } from './party-combobox.js';
+import './related-deal-search.js';
 
 const formatTrimmed = (value, maximumFractionDigits = 3) => Number(value || 0).toLocaleString('en-US', {
     minimumFractionDigits: 0,
