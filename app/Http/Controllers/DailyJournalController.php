@@ -7,18 +7,18 @@ use App\Enums\MoneyMovementType;
 use App\Enums\PartnerRole;
 use App\Enums\UserRole;
 use App\Models\BusinessPartner;
-use App\Models\Deal;
 use App\Models\FinancialAccount;
 use App\Models\MoneyMovement;
 use App\Services\DailyJournalService;
 use App\Services\PartnerLedgerService;
 use App\Support\JalaliDate;
+use App\Support\RelatedDeals;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DailyJournalController extends Controller
 {
-    public function __invoke(Request $request, DailyJournalService $journal, PartnerLedgerService $partnerLedger, JalaliDate $dates): View
+    public function __invoke(Request $request, DailyJournalService $journal, PartnerLedgerService $partnerLedger, JalaliDate $dates, RelatedDeals $deals): View
     {
         $dateInput = $request->input('date');
         if ($dateInput) {
@@ -58,6 +58,7 @@ class DailyJournalController extends Controller
             });
         }
         $currency = $account?->currency->value ?? 'USD';
+        $canRecordFinance = $request->user()->hasAnyRole(UserRole::GeneralManager, UserRole::Accountant);
 
         return view('finance.journal', [
             'accounts' => $accounts,
@@ -69,10 +70,10 @@ class DailyJournalController extends Controller
             'summary' => $summary,
             'currency' => $currency,
             'partners' => BusinessPartner::query()->where('is_active', true)->with('roles')->orderBy('name')->get(),
-            'deals' => Deal::query()->with(['sources.supplier', 'destinations.customer'])->latest('deal_date')->limit(100)->get(),
             'movementTypes' => MoneyMovementType::cases(),
             'expenseCategories' => ExpenseCategory::cases(),
-            'canRecordFinance' => $request->user()->hasAnyRole(UserRole::GeneralManager, UserRole::Accountant),
+            'canRecordFinance' => $canRecordFinance,
+            'dealOptions' => $canRecordFinance ? $deals->initial(null, (int) $request->old('deal_id')) : null,
         ]);
     }
 }

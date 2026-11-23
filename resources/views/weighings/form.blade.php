@@ -19,7 +19,7 @@
                             <select id="sale_item_id" class="control" name="sale_item_id" required @disabled($weighingRecord->exists)>
                                 <option value="">—</option>
                                 @foreach($saleItems as $item)
-                                    <option value="{{ $item->id }}" @selected((string) old('sale_item_id', $selectedSaleItemId) === (string) $item->id)>{{ $item->sale->reference_code }} · {{ $item->sale->customer->name }} · {{ $item->product->name }} · {{ $item->warehouse->name }}</option>
+                                    <option value="{{ $item->id }}" @selected((string) old('sale_item_id', $selectedSaleItemId) === (string) $item->id)>{{ $item->sale->customer->name }} · {{ $item->product->name }} · {{ $item->warehouse->name }} · {{ $item->sale->reference_code }}</option>
                                 @endforeach
                             </select>
                             <x-field-error name="sale_item_id" />

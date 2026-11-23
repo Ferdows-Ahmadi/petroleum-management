@@ -8,13 +8,14 @@ use App\Models\BusinessPartner;
 use App\Models\FinancialAccount;
 use App\Services\PartnerLedgerService;
 use App\Services\SarafLedgerService;
+use App\Support\RelatedDeals;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class OfficeAccountController extends Controller
 {
-    public function index(Request $request, PartnerLedgerService $ledger, SarafLedgerService $sarafLedger): View
+    public function index(Request $request, PartnerLedgerService $ledger, SarafLedgerService $sarafLedger, RelatedDeals $deals): View
     {
         $canViewMoneyDetails = $request->user()->hasAnyRole(UserRole::GeneralManager->value, UserRole::Accountant->value);
         $roleFilter = in_array($request->input('role'), array_column(PartnerRole::cases(), 'value'), true) ? $request->input('role') : null;
@@ -40,6 +41,7 @@ class OfficeAccountController extends Controller
             'partners' => $partners,
             'partnerRows' => $partnerRows,
             'roleFilter' => $roleFilter,
+            'dealOptions' => $selected && $canViewMoneyDetails ? $deals->initial($selected->id, (int) $request->old('deal_id')) : null,
             'selectedPartner' => $selected,
             'statement' => $selectedStatement,
             'balance' => $selectedStatement->last()['running_balance'] ?? '0.00',

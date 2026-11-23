@@ -22,6 +22,7 @@ use App\Http\Controllers\OfficeTransactionController;
 use App\Http\Controllers\PartnerFinanceController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\RelatedDealController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\UserController;
@@ -162,6 +163,7 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function (): void {
         UserRole::Accountant->value,
     ]))->group(function (): void {
         Route::post('/finance/expenses', [OfficeFinanceController::class, 'storeExpense'])->name('office.finance.expenses.store')->middleware('once');
+        Route::get('/money-movement-deals', RelatedDealController::class)->name('money-movements.deals');
         Route::post('/money-movements', [MoneyMovementController::class, 'store'])->name('money-movements.store')->middleware('once');
         Route::post('/accounts/money', [MoneyMovementController::class, 'store'])->name('office.accounts.money.store')->middleware('once');
         Route::get('/money-movements/{moneyMovement}/edit', [MoneyMovementController::class, 'edit'])->name('money-movements.edit');

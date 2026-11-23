@@ -19,6 +19,8 @@ use App\Services\FinancialAccountBalanceService;
 use App\Services\MoneyMovementService;
 use App\Services\PartnerLedgerService;
 use App\Services\SarafLedgerService;
+use App\Support\JalaliDate;
+use App\Support\RelatedDeals;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\Concerns\CreatesFinanceFixtures;
@@ -188,6 +190,60 @@ class MoneyMovementWorkflowTest extends TestCase
             $user = User::factory()->create(['role' => $role]);
             $this->actingAs($user)->get(route('money-movements.show', $movement))->assertForbidden();
             $this->post(route('money-movements.store'), [])->assertForbidden();
+        }
+    }
+
+    public function test_related_deal_picker_finds_and_restores_an_older_deal_by_its_human_details(): void
+    {
+        [$deal, $supplier, $customer, $saraf, $user] = $this->simpleContext('950.00', '1200.00');
+        $otherParty = BusinessPartner::factory()->create();
+        $draft = $this->movement($user, [
+            'deal_id' => $deal->id, 'counterparty_id' => $customer->id, 'saraf_id' => $saraf->id,
+        ]);
+        // Put this selection beyond both the first page and the old 100-row cutoff.
+        foreach (range(1, 101) as $number) {
+            Deal::create(['deal_date' => '2026-09-01', 'status' => 'COMPLETED', 'reference_number' => "TEST-RECENT-{$number}"]);
+        }
+        Deal::create(['deal_date' => '2026-08-30', 'status' => 'DRAFT', 'reference_number' => 'ONLY-DRAFT']);
+        $this->actingAs($user);
+        $this->getJson(route('money-movements.deals'))->assertOk()->assertJsonCount(25, 'options')->assertJsonPath('has_more', true);
+        foreach ([$deal->reference_code, $customer->name, $supplier->name, $deal->product->name] as $search) {
+            $response = $this->getJson(route('money-movements.deals', ['search' => $search]))
+                ->assertOk()->assertJsonPath('options.0.id', $deal->id);
+            $label = $response->json('options.0.label');
+            foreach ([$supplier->name, $customer->name, $deal->product->name, app(JalaliDate::class)->format($deal->deal_date), '1,000 kg', '1,200.00 USD', $deal->reference_code] as $part) {
+                $this->assertStringContainsString($part, $label);
+            }
+        }
+        $this->getJson(route('money-movements.deals', ['partner_id' => $otherParty->id, 'search' => $deal->reference_code]))
+            ->assertOk()->assertJsonCount(0, 'options');
+        $this->getJson(route('money-movements.deals', ['search' => 'ONLY-DRAFT']))->assertOk()->assertJsonCount(0, 'options');
+        $this->get(route('money-movements.edit', $draft))->assertOk()
+            ->assertSee('value="'.$deal->id.'" selected>'.$label.'</option>', false);
+        $this->get(route('money-movements.show', $draft))->assertOk()->assertSee($label);
+    }
+
+    public function test_deal_detail_money_form_preserves_the_explicit_unallocated_choice(): void
+    {
+        [$deal, , $customer, $saraf, $accountant] = $this->simpleContext('900.00', '1200.00');
+        $this->actingAs($accountant)->get(route('deals.show', $deal))->assertOk()
+            ->assertSee('value="'.$deal->id.'" selected>'.RelatedDeals::label($deal).'</option>', false);
+        $this->withSession(['_old_input' => ['deal_id' => '']])->get(route('deals.show', $deal))
+            ->assertOk()->assertDontSee('value="'.$deal->id.'" selected>'.RelatedDeals::label($deal).'</option>', false);
+        $this->post(route('money-movements.store'), [
+            'movement_type' => 'CUSTOMER_RECEIPT', 'movement_date' => '2026-08-30', 'amount' => '20',
+            'money_route' => 'saraf', 'saraf_id' => $saraf->id, 'counterparty_id' => $customer->id,
+            'currency' => 'USD', 'deal_id' => '', 'return_to' => 'deal',
+        ])->assertRedirect(route('money-movements.show', MoneyMovement::sole()));
+        $this->assertNull(MoneyMovement::sole()->deal_id);
+    }
+
+    public function test_related_deal_search_has_the_same_role_boundary_as_recording_money(): void
+    {
+        foreach (UserRole::cases() as $role) {
+            $user = User::factory()->create(['role' => $role]);
+            $response = $this->actingAs($user)->getJson(route('money-movements.deals'));
+            $response->assertStatus(in_array($role, [UserRole::GeneralManager, UserRole::Accountant], true) ? 200 : 403);
         }
     }
 

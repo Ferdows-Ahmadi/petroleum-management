@@ -7,10 +7,10 @@ use App\Enums\MoneyMovementType;
 use App\Enums\PartnerRole;
 use App\Http\Requests\MoneyMovementRequest;
 use App\Models\BusinessPartner;
-use App\Models\Deal;
 use App\Models\FinancialAccount;
 use App\Models\MoneyMovement;
 use App\Services\MoneyMovementService;
+use App\Support\RelatedDeals;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,12 +45,12 @@ class MoneyMovementController extends Controller
 
     public function show(MoneyMovement $moneyMovement): View
     {
-        $moneyMovement->load(['counterparty.roles', 'saraf.roles', 'deal', 'account', 'creator', 'confirmer']);
+        $moneyMovement->load(['counterparty.roles', 'saraf.roles', 'deal' => fn ($deal) => $deal->with(RelatedDeals::RELATIONS), 'account', 'creator', 'confirmer']);
 
         return view('money-movements.show', compact('moneyMovement'));
     }
 
-    public function edit(MoneyMovement $moneyMovement): View|RedirectResponse
+    public function edit(Request $request, MoneyMovement $moneyMovement, RelatedDeals $deals): View|RedirectResponse
     {
         if ($moneyMovement->status === MoneyMovementStatus::Confirmed) {
             return redirect()->route('money-movements.show', $moneyMovement)->with('error', __('finance.confirmed_notice'));
@@ -61,7 +61,7 @@ class MoneyMovementController extends Controller
             'partners' => BusinessPartner::query()->where('is_active', true)->with('roles')->orderBy('name')->get(),
             'sarafs' => BusinessPartner::query()->where('is_active', true)->withRole(PartnerRole::Saraf)->orderBy('name')->get(),
             'accounts' => FinancialAccount::query()->where('is_active', true)->orderBy('name')->get(),
-            'deals' => Deal::query()->with(['sources.supplier', 'destinations.customer'])->latest('deal_date')->limit(100)->get(),
+            'dealOptions' => $deals->initial(null, (int) $request->old('deal_id', $moneyMovement->deal_id)),
             'movementTypes' => MoneyMovementType::cases(),
         ]);
     }
@@ -91,7 +91,7 @@ class MoneyMovementController extends Controller
     private function redirectFor(MoneyMovementRequest $request, MoneyMovement $movement): RedirectResponse
     {
         return match ($request->input('return_to')) {
-            'deal' => redirect()->route('deals.show', $movement->deal_id),
+            'deal' => $movement->deal_id ? redirect()->route('deals.show', $movement->deal_id) : redirect()->route('money-movements.show', $movement),
             'journal' => redirect()->route('finance.journal', $movement->saraf_id ? ['context' => 'saraf', 'saraf_id' => $movement->saraf_id] : ['context' => 'account', 'account_id' => $movement->financial_account_id]),
             default => redirect()->route('office.accounts', ['partner_id' => $movement->counterparty_id ?: $movement->saraf_id]),
         };

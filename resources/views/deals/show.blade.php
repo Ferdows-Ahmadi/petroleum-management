@@ -103,7 +103,6 @@
                 @if($canRecordMoney && $deal->status === \App\Enums\DealStatus::Completed)
                     @php($movementTypes = [\App\Enums\MoneyMovementType::CustomerReceipt, \App\Enums\MoneyMovementType::SupplierPayment])
                     @php($partners = $deal->sources->pluck('supplier')->filter()->merge($deal->destinations->pluck('customer')->filter())->unique('id')->values())
-                    @php($deals = collect([$deal]))
                     <details class="cardx card-pad office-money-actions" @if($errors->any()) open @endif><summary class="section-title">{{ __('finance.create_payment') }}</summary><form method="POST" action="{{ route('money-movements.store') }}">@csrf<input type="hidden" name="confirm_now" value="1"><input type="hidden" name="return_to" value="deal">@include('money-movements._fields', ['moneyMovement' => null, 'counterparty' => null])<div class="form-actions"><button class="btnx btn-primaryx">{{ __('office.confirm_now') }}</button></div></form></details>
                 @endif
             @endif

@@ -8,6 +8,7 @@ use App\Enums\FinancialTransactionType;
 use App\Enums\MoneyMovementStatus;
 use App\Models\BusinessPartner;
 use App\Models\FinancialAccount;
+use App\Support\RelatedDeals;
 
 class DailyJournalService
 {
@@ -66,7 +67,7 @@ class DailyJournalService
         foreach ($account->moneyMovements()
             ->where('status', MoneyMovementStatus::Confirmed->value)
             ->whereDate('movement_date', $date)
-            ->with(['counterparty', 'deal', 'saraf'])
+            ->with(['counterparty', 'deal' => fn ($deal) => $deal->with(RelatedDeals::RELATIONS), 'saraf'])
             ->get() as $movement) {
             $entries->push($this->moneyEntry($movement));
         }
@@ -112,7 +113,7 @@ class DailyJournalService
         $entries = $saraf->sarafMoneyMovements()
             ->where('status', MoneyMovementStatus::Confirmed->value)
             ->whereDate('movement_date', $date)
-            ->with(['counterparty', 'deal'])
+            ->with(['counterparty', 'deal' => fn ($deal) => $deal->with(RelatedDeals::RELATIONS)])
             ->get()
             ->map(fn ($movement): array => $this->moneyEntry($movement, true))
             ->sortBy(fn (array $entry): string => $entry['sort_at']->format('Y-m-d H:i:s.u').'-'.str_pad((string) $entry['sort_id'], 12, '0', STR_PAD_LEFT))

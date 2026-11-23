@@ -14,7 +14,7 @@
             </div>
         </section>
     @endif
-    <section class="cardx card-pad"><form class="filters" method="GET" data-journal-context-form><input class="control filter-control ltr-value" name="date" value="{{ app(\App\Support\JalaliDate::class)->format($date) }}" placeholder="1405/05/19"><select class="control" name="context" data-journal-context><option value="account" @selected($context === 'account')>{{ __('finance.financial_account') }}</option><option value="saraf" @selected($context === 'saraf')>{{ __('finance.saraf') }}</option></select><select class="control grow" name="account_id" data-journal-account>@foreach($accounts as $item)<option value="{{ $item->id }}" @selected($account?->id === $item->id)>{{ $item->name }} · {{ $item->currency->value }}</option>@endforeach</select><select class="control grow" name="saraf_id" data-journal-saraf>@foreach($sarafs as $item)<option value="{{ $item->id }}" @selected($saraf?->id === $item->id)>{{ $item->name }}</option>@endforeach</select><button class="btnx btn-lightx">{{ __('common.view') }}</button></form></section>
+    <section class="cardx card-pad"><form class="filters" method="GET" data-journal-context-form><input class="control filter-control ltr-value" name="date" value="{{ app(\App\Support\JalaliDate::class)->format($date) }}" placeholder="1405/05/19"><select class="control" name="context" data-journal-context><option value="account" @selected($context === 'account')>{{ __('finance.financial_account') }}</option><option value="saraf" @selected($context === 'saraf')>{{ __('finance.saraf') }}</option></select><select class="control grow" name="account_id" data-journal-account>@foreach($accounts as $item)<option value="{{ $item->id }}" @selected($account?->id === $item->id)>{{ $item->name }} · {{ $item->currency->value }}</option>@endforeach</select><select class="control grow" name="saraf_id" data-journal-saraf>@foreach($sarafs as $item)<option value="{{ $item->id }}" @selected($saraf?->id === $item->id)>{{ $item->name }} · {{ $item->reference_code }}</option>@endforeach</select><button class="btnx btn-lightx">{{ __('common.view') }}</button></form></section>
     @if(!$summary)
         <div class="empty">{{ __('common.no_records') }}</div>
     @else
@@ -31,7 +31,7 @@
                         <td>@if($source instanceof \App\Models\MoneyMovement)<a href="{{ route('money-movements.show', $source) }}">{{ $entry['description'] }}</a>@else{{ $entry['description'] }}@endif</td>
                         <td>{{ $entry['party'] }}</td>
                         <td>{{ $source instanceof \App\Models\MoneyMovement ? ($source->saraf?->name ?? '—') : '—' }}</td>
-                        <td>@if($source instanceof \App\Models\MoneyMovement && $source->deal)<a class="table-link ltr-value" href="{{ route('deals.show', $source->deal) }}">{{ $source->deal->reference_code }}</a>@else—@endif</td>
+                        <td>@if($source instanceof \App\Models\MoneyMovement && $source->deal)<a class="table-link" href="{{ route('deals.show', $source->deal) }}">{{ \App\Support\RelatedDeals::label($source->deal) }}</a>@else—@endif</td>
                         <td class="ltr-value">{{ $source?->reference_code ?? '—' }}</td>
                         <td class="ltr-value">{{ $entry['direction'] === 1 ? app(\App\Support\NumberFormat::class)->money($entry['amount']) : '—' }}</td>
                         <td class="ltr-value">{{ $entry['direction'] === -1 ? app(\App\Support\NumberFormat::class)->money($entry['amount']) : '—' }}</td>
