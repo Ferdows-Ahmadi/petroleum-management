@@ -24,6 +24,8 @@ return [
     'distinct' => ':attribute تکراری است.',
     'enum' => ':attribute انتخاب‌شده معتبر نیست.',
     'alpha_dash' => ':attribute فقط می‌تواند شامل حروف انگلیسی، عدد، خط تیره و زیرخط باشد.',
+    'uuid' => 'فورم را دوباره باز کنید و کوشش کنید.',
+    'prohibited_unless' => 'در این حالت، :attribute را خالی بگذارید.',
     'required_without' => ':attribute را وارد کنید یا یکی از گزینه‌های موجود را انتخاب کنید.',
     'prohibited_if' => 'با این انتخاب، :attribute را خالی بگذارید.',
     'different' => ':attribute و :other باید متفاوت باشند.',

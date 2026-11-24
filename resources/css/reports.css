@@ -7,7 +7,7 @@
 .report-switch { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .6rem; }
 @media print {
     .report-document .page-head, .report-document .filters, .report-document .no-print,
-    .report-document .cardx:has(> .filters) { display: none !important; }
+    .report-document .cardx:has(> .filters:only-child) { display: none !important; }
     .report-document { color: #111; direction: rtl; }
     .report-document .table-wrap { overflow: visible; }
     .report-document .tablex { width: 100%; min-width: 0; }
