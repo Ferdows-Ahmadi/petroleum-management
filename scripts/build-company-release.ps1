@@ -1,78 +1,132 @@
-﻿param([string]$Commit)
+﻿[CmdletBinding()]
+param(
+    [string]$Commit = 'HEAD',
+    [string]$OutputDirectory = (Join-Path (Split-Path -Parent $PSScriptRoot) 'release')
+)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$releaseRoot = Join-Path $projectRoot 'release'
-$target = [IO.Path]::GetFullPath((Join-Path $releaseRoot 'petroleum-management-company-handoff'))
-$allowedRoot = [IO.Path]::GetFullPath($releaseRoot) + [IO.Path]::DirectorySeparatorChar
-if (!$target.StartsWith($allowedRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe release path.' }
-New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
-if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
-New-Item -ItemType Directory -Path $target | Out-Null
-$sourceRoot = $projectRoot
-$temporaryRoot = $null
+$revision = & git -C $projectRoot rev-parse --verify --end-of-options "${Commit}^{commit}"
+if ($LASTEXITCODE -ne 0 -or $revision -notmatch '^[0-9a-f]{40}$') { throw 'Select a valid Git commit.' }
+
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$utf8 = [Text.UTF8Encoding]::new($false)
+$output = [IO.Directory]::CreateDirectory($OutputDirectory).FullName
+$name = "Naftyar-Windows-$($revision.Substring(0,12))"
+$zip = Join-Path $output "$name.zip"
+$checksum = "$zip.sha256"
+$manifest = Join-Path $output "$name.manifest.json"
+foreach ($file in @($zip, $checksum, $manifest)) {
+    if (Test-Path -LiteralPath $file) { throw "Output already exists: $file. Select a fresh output directory." }
+}
+
+# Format and hash the same relative filenames on Windows PowerShell and PowerShell 7.
+function Get-Digest([string]$Path) {
+    $stream = [IO.File]::OpenRead($Path)
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try { return [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-', '').ToLowerInvariant() }
+    finally { $stream.Dispose(); $hasher.Dispose() }
+}
+
+$stage = Join-Path $output ('.build-' + [guid]::NewGuid().ToString('N').Substring(0,12))
+New-Item -ItemType Directory -Path $stage | Out-Null
 try {
-    if ($Commit) {
-        $temporaryRoot = Join-Path $releaseRoot ('source-' + [guid]::NewGuid().ToString('N'))
-        New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
-        $archive = Join-Path $temporaryRoot 'source.zip'
-        & git -C $projectRoot archive "--output=$archive" $Commit
-        if ($LASTEXITCODE -ne 0) { throw 'git archive failed.' }
-        Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $temporaryRoot 'tree')
-        $sourceRoot = Join-Path $temporaryRoot 'tree'
+    $tree = Join-Path $stage 'app'
+    $inputs = @(
+        'app','config','lang','resources','routes','tests','database/migrations','database/factories','database/seeders',
+        'bootstrap/app.php','bootstrap/providers.php','bootstrap/cache/.gitignore',
+        'public/index.php','public/.htaccess','public/robots.txt','public/favicon.ico','public/favicon-32x32.png','public/apple-touch-icon.png','public/images',
+        'artisan','composer.json','composer.lock','package.json','package-lock.json','vite.config.js','phpunit.xml','phpunit.mysql.xml',
+        '.env.example','.editorconfig','.gitattributes','.npmrc','scripts/build-company-release.ps1',
+        'FIRST_SETUP.bat','FIRST_SETUP.ps1','START_SYSTEM.bat','BACKUP_SYSTEM.bat','CHECK_SYSTEM.bat','راهنمای_خیلی_ساده_کاربران.txt',
+        'docs/COMPANY_HANDOFF_VERIFICATION_2026_10_03.md','docs/SIMPLIFIED_OPERATIONS_VERIFICATION_2026_10_03.md','docs/contact-import.md','handoff'
+    )
+    # Earlier releases may be rehearsed before these launchers and the checklist were introduced.
+    foreach ($path in @('STOP_SYSTEM.bat','RESTART_SYSTEM.bat','docs/first-supervised-installation-fa.md')) {
+        if (& git -C $projectRoot ls-tree --name-only $revision -- $path) { $inputs += $path }
     }
-    foreach ($directory in @('app','config','lang','resources','routes','tests')) {
-        Copy-Item -LiteralPath (Join-Path $sourceRoot $directory) -Destination $target -Recurse
-    }
-    New-Item -ItemType Directory -Path (Join-Path $target 'database') | Out-Null
-    foreach ($directory in @('migrations','factories','seeders')) {
-        Copy-Item -LiteralPath (Join-Path $sourceRoot ('database/'+$directory)) -Destination (Join-Path $target 'database') -Recurse
-    }
-    New-Item -ItemType Directory -Path (Join-Path $target 'bootstrap'),(Join-Path $target 'public'),(Join-Path $target 'docs'),(Join-Path $target 'scripts') | Out-Null
-    foreach ($file in @('bootstrap/app.php','bootstrap/providers.php')) {
-        Copy-Item -LiteralPath (Join-Path $sourceRoot $file) -Destination (Join-Path $target $file)
-    }
-    foreach ($file in @('artisan','composer.json','composer.lock','package.json','package-lock.json','vite.config.js','phpunit.xml','phpunit.mysql.xml','.env.example','.editorconfig','.gitattributes','.npmrc')) {
-        Copy-Item -LiteralPath (Join-Path $sourceRoot $file) -Destination (Join-Path $target $file)
-    }
-    Copy-Item -LiteralPath (Join-Path $sourceRoot 'scripts/build-company-release.ps1') -Destination (Join-Path $target 'scripts')
-    foreach ($file in @('FIRST_SETUP.bat','FIRST_SETUP.ps1','START_SYSTEM.bat','BACKUP_SYSTEM.bat','CHECK_SYSTEM.bat','راهنمای_خیلی_ساده_کاربران.txt')) {
-        Copy-Item -LiteralPath (Join-Path $sourceRoot $file) -Destination (Join-Path $target $file)
-    }
-    Copy-Item -LiteralPath (Join-Path $sourceRoot 'docs/COMPANY_HANDOFF_VERIFICATION_2026_10_03.md') -Destination (Join-Path $target 'docs')
-    Copy-Item -LiteralPath (Join-Path $sourceRoot 'docs/contact-import.md') -Destination (Join-Path $target 'docs')
-    Copy-Item -LiteralPath (Join-Path $sourceRoot 'handoff') -Destination $target -Recurse
-    Get-ChildItem -LiteralPath (Join-Path $sourceRoot 'handoff') -File -Force | Where-Object {
+    $sourceArchive = Join-Path $stage 'source.zip'
+    & git -C $projectRoot archive --format=zip "--output=$sourceArchive" $revision -- @inputs
+    if ($LASTEXITCODE -ne 0) { throw 'git archive failed.' }
+    [IO.Compression.ZipFile]::ExtractToDirectory($sourceArchive, $tree)
+
+    # Preserve the handoff's root launchers and Dari operator instructions.
+    Get-ChildItem -LiteralPath (Join-Path $tree 'handoff') -File -Force | Where-Object {
         $_.Name -notin @('INSTALL_BRIDGE.php','LOCAL_SERVER.php','OPERATIONAL_COMMON.ps1','RUN_DAILY.ps1','RUN_BACKUP.ps1')
-    } | ForEach-Object {
-        Copy-Item -LiteralPath $_.FullName -Destination $target
+    } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $tree }
+    foreach ($directory in @('storage/app/private','storage/app/public','storage/framework/cache/data','storage/framework/sessions','storage/framework/testing','storage/framework/views','storage/logs')) {
+        $directoryPath = [IO.Directory]::CreateDirectory((Join-Path $tree $directory)).FullName
+        [IO.File]::WriteAllText((Join-Path $directoryPath '.gitignore'), "*`n!.gitignore`n", $utf8)
     }
-    Copy-Item -LiteralPath (Join-Path $sourceRoot 'docs/SIMPLIFIED_OPERATIONS_VERIFICATION_2026_10_03.md') -Destination (Join-Path $target 'docs')
-    foreach ($file in @('public/index.php','public/.htaccess','public/robots.txt','public/favicon.ico','public/favicon-32x32.png','public/apple-touch-icon.png')) {
-        Copy-Item -LiteralPath (Join-Path $sourceRoot $file) -Destination (Join-Path $target $file)
+
+    $composerHash = Get-Digest (Join-Path $tree 'composer.lock')
+    $npmHash = Get-Digest (Join-Path $tree 'package-lock.json')
+    Push-Location -LiteralPath $tree
+    try {
+        & composer validate --no-check-publish
+        if ($LASTEXITCODE -ne 0) { throw 'composer.json and composer.lock did not validate.' }
+        & composer install --no-interaction --no-dev --prefer-dist --optimize-autoloader --no-scripts --no-progress
+        if ($LASTEXITCODE -ne 0) { throw 'Locked production Composer installation failed.' }
+        & composer check-platform-reqs --no-dev
+        if ($LASTEXITCODE -ne 0) { throw 'PHP requirements are not satisfied.' }
+        & npm.cmd ci --include=dev --ignore-scripts --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) { throw 'Locked npm installation failed.' }
+        & npm.cmd run build
+        if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
+        if ($composerHash -ne (Get-Digest (Join-Path $tree 'composer.lock')) -or $npmHash -ne (Get-Digest (Join-Path $tree 'package-lock.json'))) {
+            throw 'A build step changed a lockfile.'
+        }
+        foreach ($required in @('vendor/autoload.php','vendor/composer/installed.json','public/build/manifest.json')) {
+            if (!(Test-Path -LiteralPath $required -PathType Leaf)) { throw "Missing build artifact: $required" }
+        }
+        $metadata = [ordered]@{
+            source_commit = $revision
+            builder_sha256 = Get-Digest $PSCommandPath
+            composer_lock_sha256 = $composerHash
+            npm_lock_sha256 = $npmHash
+            vite_manifest_sha256 = Get-Digest (Join-Path $tree 'public/build/manifest.json')
+            composer_production = $true
+            php = (& php -r 'echo PHP_VERSION;')
+            composer = ((& composer show --platform composer --format=json --no-ansi | ConvertFrom-Json).versions -join ',')
+            node = (& node --version)
+            npm = (& npm.cmd --version)
+        }
+        [IO.File]::WriteAllText((Join-Path $tree 'BUILD.json'), ($metadata | ConvertTo-Json), $utf8)
+    } finally { Pop-Location }
+
+    $nodeModules = [IO.Path]::GetFullPath((Join-Path $tree 'node_modules'))
+    if ([IO.Path]::GetDirectoryName($nodeModules) -ne $tree) { throw 'Unsafe temporary dependency path.' }
+    Remove-Item -LiteralPath $nodeModules -Recurse -Force
+
+    $hashLines = [Collections.Generic.List[string]]::new()
+    $temporaryZip = Join-Path $stage "$name.zip"
+    $archive = [IO.Compression.ZipFile]::Open($temporaryZip, [IO.Compression.ZipArchiveMode]::Create)
+    try {
+        foreach ($file in (Get-ChildItem -LiteralPath $tree -Recurse -File -Force | Sort-Object FullName)) {
+            $relative = $file.FullName.Substring($tree.Length + 1).Replace('\','/')
+            $hashLines.Add("$(Get-Digest $file.FullName)  $relative")
+            [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $file.FullName, $relative)
+        }
+        $inventory = Join-Path $tree 'SOURCE_FILES.sha256.txt'
+        [IO.File]::WriteAllLines($inventory, $hashLines, $utf8)
+        [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $inventory, 'SOURCE_FILES.sha256.txt')
+    } finally { $archive.Dispose() }
+
+    $zipHash = Get-Digest $temporaryZip
+    $metadata.zip_file = "$name.zip"
+    $metadata.zip_bytes = (Get-Item -LiteralPath $temporaryZip).Length
+    $metadata.zip_sha256 = $zipHash
+    $metadata.file_count = $hashLines.Count + 1
+    $metadata.inventory_sha256 = Get-Digest $inventory
+    [IO.File]::WriteAllText((Join-Path $stage "$name.manifest.json"), ($metadata | ConvertTo-Json), $utf8)
+    [IO.File]::WriteAllText((Join-Path $stage "$name.zip.sha256"), "$zipHash  $name.zip`n", $utf8)
+    foreach ($path in @($manifest, $checksum, $zip)) {
+        [IO.File]::Move((Join-Path $stage ([IO.Path]::GetFileName($path))), $path)
     }
-    Copy-Item -LiteralPath (Join-Path $sourceRoot 'public/images') -Destination (Join-Path $target 'public') -Recurse
-    Copy-Item -LiteralPath (Join-Path $projectRoot 'public/build') -Destination (Join-Path $target 'public') -Recurse
-    Copy-Item -LiteralPath (Join-Path $projectRoot 'vendor') -Destination $target -Recurse
-    foreach ($directory in @('bootstrap/cache','storage/app/private','storage/app/public','storage/framework/cache/data','storage/framework/sessions','storage/framework/testing','storage/framework/views','storage/logs')) {
-        New-Item -ItemType Directory -Force -Path (Join-Path $target $directory) | Out-Null
-        [IO.File]::WriteAllText((Join-Path $target ($directory+'/.gitignore')),("*"+[Environment]::NewLine+"!.gitignore"+[Environment]::NewLine),[Text.UTF8Encoding]::new($false))
-    }
-    $hashLines = Get-ChildItem -LiteralPath $target -File -Recurse | Where-Object {
-        !$_.FullName.StartsWith((Join-Path $target 'vendor') + '\') -and
-        !$_.FullName.StartsWith((Join-Path $target 'public/build') + '\') -and
-        !$_.FullName.StartsWith((Join-Path $target 'storage') + '\') -and
-        !$_.FullName.StartsWith((Join-Path $target 'bootstrap/cache') + '\')
-    } | Sort-Object FullName | ForEach-Object {
-        $relative = $_.FullName.Substring($target.Length + 1).Replace('\','/')
-        (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLower() + '  ' + $relative
-    }
-    [IO.File]::WriteAllLines((Join-Path $target 'SOURCE_FILES.sha256.txt'),$hashLines,[Text.UTF8Encoding]::new($false))
-    Write-Output "Clean release generated: $target"
-    Write-Output "Source revision: $(if ($Commit) {$Commit} else {'working tree, pending copied-package verification'})"
+    Write-Output "Release ZIP: $zip"
+    Write-Output "SHA-256: $zipHash"
 } finally {
-    if ($temporaryRoot) {
-        $resolved = [IO.Path]::GetFullPath($temporaryRoot)
-        if (!$resolved.StartsWith($allowedRoot,[StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe temporary cleanup path.' }
-        Remove-Item -LiteralPath $resolved -Recurse -Force
-    }
+    $resolved = [IO.Path]::GetFullPath($stage)
+    if ([IO.Path]::GetDirectoryName($resolved) -ne $output) { throw 'Unsafe temporary cleanup path.' }
+    Remove-Item -LiteralPath $resolved -Recurse -Force
 }

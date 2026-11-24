@@ -1,7 +1,31 @@
-﻿$ErrorActionPreference = 'Stop'
+﻿param(
+    [ValidateSet('Start', 'Stop', 'Restart')][string]$Action = 'Start',
+    [switch]$NoBrowser
+)
+$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'OPERATIONAL_COMMON.ps1')
 $mutex = $null
 $locked = $false
+# All operations share the same per-installation mutex. A stale PID or a foreign
+# listener must never grant permission to terminate another Windows process.
+function Get-OwnedListener($Listeners, $StateFile, $Settings, [string]$ServerArguments) {
+    $mismatch = 'The selected address belongs to another process.'
+    if ($Listeners.Count -ne 1 -or $Listeners[0].LocalAddress -ne '127.0.0.1' -or
+        !(Test-Path -LiteralPath $StateFile -PathType Leaf)) { throw $mismatch }
+    $state = Get-Content -LiteralPath $StateFile -Raw | ConvertFrom-Json
+    if ($Listeners[0].OwningProcess -ne $state.pid) { throw $mismatch }
+    $running = Get-Process -Id $Listeners[0].OwningProcess -ErrorAction Stop
+    # Open and retain the original process handle before checking the start time.
+    $null = $running.Handle
+    $details = Get-CimInstance -ClassName Win32_Process -Filter ('ProcessId = ' + $running.Id)
+    if ($running.HasExited -or $running.StartTime.ToUniversalTime().Ticks.ToString() -ne $state.started -or
+        $running.Path -ne $Settings.php -or !$details.CommandLine -or
+        !$details.CommandLine.EndsWith((' ' + $ServerArguments), [StringComparison]::OrdinalIgnoreCase)) {
+        $running.Dispose()
+        throw $mismatch
+    }
+    return $running
+}
 try {
     $settings = Get-SystemSettings
     $digest = [Security.Cryptography.SHA256]::Create()
@@ -11,21 +35,28 @@ try {
     $locked = $mutex.WaitOne(30000)
     if (!$locked) { throw 'Another start is in progress.' }
     $stateFile = Join-Path $script:SystemRoot 'storage\app\daily-runtime.json'
-    $listener = @(Get-NetTCPConnection -LocalPort $settings.port -State Listen -ErrorAction SilentlyContinue)
+    $router = Join-Path $script:SystemRoot 'handoff\LOCAL_SERVER.php'
+    $public = Join-Path $script:SystemRoot 'public'
+    $log = Join-Path $script:SystemRoot 'storage\logs\daily-server-error.log'
+    $arguments = '-d display_errors=Off -d log_errors=On -d error_log="' + $log + '" -S 127.0.0.1:' + $settings.port + ' -t "' + $public + '" "' + $router + '"'
+    $listener = @(Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object LocalPort -eq $settings.port)
     if ($listener.Count -gt 0) {
-        if (!(Test-Path -LiteralPath $stateFile)) { throw 'The selected address belongs to another process.' }
-        $state = Get-Content -LiteralPath $stateFile -Raw | ConvertFrom-Json
-        $running = Get-Process -Id $state.pid -ErrorAction SilentlyContinue
-        if (!$running -or $running.StartTime.ToUniversalTime().Ticks.ToString() -ne $state.started -or
-            $running.Path -ne $settings.php -or !($listener | Where-Object { $_.OwningProcess -eq $state.pid })) { throw 'The selected address belongs to another process.' }
-    } else {
+        $running = Get-OwnedListener $listener $stateFile $settings $arguments
+        try {
+            if ($Action -ne 'Start') {
+                $running.Kill()
+                if (!$running.WaitForExit(10000)) { throw 'The local server could not be stopped.' }
+                Remove-Item -LiteralPath $stateFile
+            }
+        } finally { $running.Dispose() }
+    }
+    if ($Action -eq 'Stop') {
+        Write-Host 'The local application server is stopped.'
+        exit 0
+    }
+    if ($listener.Count -eq 0 -or $Action -eq 'Restart') {
         $check = Invoke-PrivatePhp $settings.php 'artisan app:check-system --no-interaction'
         if ($check.Code -ne 0) { throw 'Installation check failed.' }
-        $router = Join-Path $script:SystemRoot 'handoff\LOCAL_SERVER.php'
-        $public = Join-Path $script:SystemRoot 'public'
-        # Launch directly: the recorded PID is the listener, with no console window to keep open.
-        $log = Join-Path $script:SystemRoot 'storage\logs\daily-server-error.log'
-        $arguments = '-d display_errors=Off -d log_errors=On -d error_log="' + $log + '" -S 127.0.0.1:' + $settings.port + ' -t "' + $public + '" "' + $router + '"'
         $command = '"' + $settings.php + '" ' + $arguments
         # WMI starts under the current user's identity, independently of the launcher
         # console/job lifetime. No administrator elevation or scheduled task is required.
@@ -52,7 +83,10 @@ try {
         Start-Sleep -Milliseconds 300
     }
     if (!$ready) { throw 'The system is unavailable.' }
-    Start-Process $settings.url
+    $listener = @(Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object LocalPort -eq $settings.port)
+    $verified = Get-OwnedListener $listener $stateFile $settings $arguments
+    $verified.Dispose()
+    if (!$NoBrowser) { Start-Process $settings.url }
     Write-Host 'سیستم آماده است. در صفحه بازشده وارد شوید.'
     exit 0
 } catch {

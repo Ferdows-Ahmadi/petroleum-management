@@ -1,4 +1,5 @@
-﻿# One-time technical installation. No existing configuration/database is reset.
+﻿param([string]$ShortcutDirectory = [Environment]::GetFolderPath('Desktop'))
+# One-time technical installation. No existing configuration/database is reset.
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'handoff\OPERATIONAL_COMMON.ps1')
 function Read-Default([string]$Prompt, [string]$Default) {
@@ -34,7 +35,7 @@ function Select-MySql84Tools([string[]]$Candidates) {
 try {
     Write-Host 'FIRST SETUP - Technical installer only'
     if (Test-Path -LiteralPath '.env') { throw 'This installation is already configured. Use the desktop shortcut to start the system.' }
-    New-CompanyShortcuts -CheckOnly
+    New-CompanyShortcuts -Desktop $ShortcutDirectory -CheckOnly
     if (!(Test-Path 'vendor\autoload.php') -or !(Test-Path 'public\build\manifest.json')) { throw 'Use the complete company handoff package.' }
     $phpCommand = Get-Command php -ErrorAction SilentlyContinue
     $php = if ($phpCommand) { $phpCommand.Source } else { Read-Host 'Full path to php.exe' }
@@ -83,7 +84,7 @@ try {
     New-Item -ItemType Directory -Force -Path (Join-Path $script:SystemRoot 'Backups') | Out-Null
     & icacls.exe (Join-Path $script:SystemRoot 'Backups') '/inheritance:r' '/grant:r' ($identity + ':(OI)(CI)(F)') '*S-1-5-18:(OI)(CI)(F)' '*S-1-5-32-544:(OI)(CI)(F)' | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'The installer must check backup folder permissions.' }
-    New-CompanyShortcuts
+    New-CompanyShortcuts -Desktop $ShortcutDirectory
     Write-Host 'Installation and verification succeeded. No demo deals or accounts were installed.'
     Write-Host 'Double-click the company system desktop shortcut and sign in with the manager email and password.'
     exit 0

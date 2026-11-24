@@ -45,7 +45,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\START_SYSTEM.ps1
 
 محدودیت‌های نسخه: حسابداری عملیاتی است؛ لغو/برگرداندن مالی تأییدشده، انتقال پول بین معاملات، واردکردن کامل Excel تاریخی، تعدیل/انتقال عمومی موجودی، ویرایش کامل هویت شرکت، خروجی مستقل تمام راپورها، نرخ زنده اسعار، معاشات و محاسبه مفاد موترها موجود نیست. بهای نامعلوم موجودی و نتیجه ناقص به جای مفاد ساختگی علامت‌گذاری می‌شود. مانده پول منفی ممکن است؛ کنترول پول واقعی مسئول شرکت است.
 
-برای برنامه‌نویس بعدی: سورس کامل، migrations، tests، lockfiles و فایل‌های اصلی رابط همراه است. راهنمای نگهداری در handoff/راهنمای_نگهداری_تخنیکی.txt قرار دارد. نسخه/commit، نتیجه بررسی‌ها و SHA-256 فایل ZIP در COMPANY_HANDOFF_MANIFEST.txt همراه تحویل ثبت می‌شود.
+برای برنامه‌نویس بعدی: سورس کامل، migrations، tests، lockfiles و فایل‌های اصلی رابط همراه است. راهنمای نگهداری در handoff/راهنمای_نگهداری_تخنیکی.txt قرار دارد. نسخه/commit، نتیجه بررسی‌ها و SHA-256 فایل ZIP در Naftyar-Windows-<commit>.manifest.json همراه تحویل ثبت می‌شود.
 
 برای واردکردن فهرست اشخاص، اپراتور نخست پیش‌نمایش را بررسی کند. [راهنمای واردکردن اشخاص و بررسی نام‌های مشابه](docs/contact-import.md)
 
@@ -56,17 +56,19 @@ This repository contains the November 7, 2026 source snapshot of Naftyar, a Dari
 To prepare the Windows installer from this repository, use PHP 8.5 with the extensions listed in the [requirements check](handoff/CHECK_REQUIREMENTS.ps1), Composer, Node.js 22.12 or newer, and npm. Install MySQL 8.4 before running the installer.
 
 ~~~powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-company-release.ps1 -Commit HEAD
+~~~
+
+The builder installs production PHP packages and builds Vite assets in a fresh export of the selected commit. It writes a Windows ZIP, SHA-256 file and JSON manifest to `release/`. It refuses to overwrite a previous package. Use `-OutputDirectory` to select a new location.
+
+Verify the ZIP against the separately supplied checksum before extracting it into a fresh directory. Run `FIRST_SETUP.bat` there. Select a new empty MySQL database and create the first manager during setup. `BUILD.json` identifies the revision, lockfiles and build tools. `SOURCE_FILES.sha256.txt` covers all other packaged files.
+
+For developer tests in a separate checkout, enable PHP's SQLite extension, install the development dependencies and use a temporary key:
+
+~~~powershell
 composer install --no-interaction
 npm ci
 npm run build
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-company-release.ps1
-~~~
-
-Open the generated `release/petroleum-management-company-handoff` folder and run `FIRST_SETUP.bat`. Select a new empty MySQL database and create the first manager during setup.
-
-After building the frontend assets, enable PHP's SQLite extension and run the tests with a temporary application key in PowerShell:
-
-~~~powershell
 $env:APP_KEY = php -r "echo 'base64:', base64_encode(random_bytes(32));"
 php vendor/bin/phpunit -c phpunit.xml --do-not-cache-result
 Remove-Item Env:APP_KEY
