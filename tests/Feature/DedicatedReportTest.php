@@ -25,7 +25,7 @@ class DedicatedReportTest extends TestCase
     public static function menus(): array
     {
         $trade = ['purchases', 'sales', 'weighings', 'inventory'];
-        $office = [...$trade, 'accounts', 'settlements'];
+        $office = ['purchases', 'sales', 'weighings', 'settlements', 'accounts', 'inventory'];
         $all = [...$office, 'expenses', 'profit-loss', 'capital'];
 
         return [
@@ -39,16 +39,24 @@ class DedicatedReportTest extends TestCase
     public function test_each_visible_menu_item_opens_a_dedicated_printable_report(UserRole $role, array $allowed): void
     {
         $this->actingAs($this->financeUser($role));
-        $index = $this->get(route('reports.index'))->assertOk();
-        $document = HTMLDocument::createFromString($index->getContent(), LIBXML_NOERROR, 'UTF-8');
-        $links = $document->querySelectorAll('nav.report-directory a');
-        $this->assertCount(count($allowed), $links);
-        foreach ($links as $link) {
-            $url = $link->getAttribute('href');
-            $this->assertContains(basename($url), $allowed);
+        $default = route('reports.'.$allowed[0]);
+        $this->get(route('reports.index'))->assertRedirect($default);
+        $reportRoutes = array_map(fn ($name) => route('reports.'.$name), $allowed);
+        foreach ($reportRoutes as $url) {
             $report = $this->get($url)->assertOk()->assertSee('window.print()', false);
             $this->assertStringStartsWith('reports.', $report->original->name());
             $dom = HTMLDocument::createFromString($report->getContent(), LIBXML_NOERROR, 'UTF-8');
+            $this->assertSame($default, $dom->querySelector('#office-menu [aria-current="page"]')->getAttribute('href'));
+            $tabs = $dom->querySelector('.report-document nav.workspace-tabs');
+            $this->assertNotNull($tabs);
+            $visible = [];
+            foreach ($tabs->querySelectorAll('a') as $link) {
+                $visible[] = $link->getAttribute('href');
+            }
+            $this->assertSame($reportRoutes, $visible);
+            $current = $tabs->querySelectorAll('a.active[aria-current="page"]');
+            $this->assertCount(1, $current);
+            $this->assertSame($url, $current[0]->getAttribute('href'));
             $this->assertCount(0, $dom->querySelectorAll('.report-document form[method="post" i]'));
             $this->assertNotSame('', trim($dom->querySelector('.print-header strong')->textContent));
         }
@@ -56,6 +64,26 @@ class DedicatedReportTest extends TestCase
         foreach (array_diff(['accounts', 'inventory', 'settlements', 'profit-loss', 'capital', 'expenses', 'purchases', 'sales', 'weighings'], $allowed) as $denied) {
             $this->get(route('reports.'.$denied))->assertForbidden();
         }
+
+        $journal = $this->get(route('reports.accounts.journal'));
+        if (in_array($role, [UserRole::GeneralManager, UserRole::SystemAdmin, UserRole::Accountant], true)) {
+            $journal->assertOk()->assertSee('window.print()', false);
+            $dom = HTMLDocument::createFromString($journal->getContent(), LIBXML_NOERROR, 'UTF-8');
+            $this->assertSame(route('reports.accounts'), $dom->querySelector('.workspace-tabs [aria-current="page"]')->getAttribute('href'));
+        } else {
+            $journal->assertForbidden();
+        }
+    }
+
+    public function test_reports_bookmark_keeps_jalali_filters_on_the_default_report(): void
+    {
+        $filters = ['date_from' => '1405/05/01', 'date_to' => '1405/05/15'];
+        $this->actingAs($this->financeUser(UserRole::GeneralManager))
+            ->get(route('reports.index', $filters))
+            ->assertRedirect(route('reports.purchases', $filters));
+        $this->get(route('reports.purchases', $filters))->assertOk()
+            ->assertViewHas('dateInputs', fn ($dates) => $dates['date_from'] === $filters['date_from'] && $dates['date_to'] === $filters['date_to'])
+            ->assertSee('window.print()', false);
     }
 
     public function test_positions_and_filtered_statement_keep_confirmed_historical_balances(): void

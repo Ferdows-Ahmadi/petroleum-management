@@ -12,6 +12,17 @@ async function main() {
         await page.locator('#email').fill(process.env.TEST_EMAIL);
         await page.locator('#password').fill(process.env.TEST_PASSWORD);
         await Promise.all([page.waitForURL('**/dashboard'), page.locator('button[type=submit]').click()]);
+        const reports = page.getByRole('navigation', { name: 'اصلی' }).getByRole('link', { name: 'گزارش‌ها' });
+        await reports.click();
+        assert.equal(new URL(page.url()).pathname, '/reports/purchases');
+        const print = page.getByRole('button', { name: 'چاپ / PDF' });
+        assert.equal(await print.evaluate(button => {
+            const text = Array.from(button.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+            const range = document.createRange();
+            range.selectNodeContents(text);
+            // Mixed RTL/LTR runs have separate rectangles even on a single line.
+            return new Set(Array.from(range.getClientRects(), rect => Math.round(rect.top))).size;
+        }), 1, 'The desktop print label must fit on one line');
         for (const report of ['inventory', 'purchases', 'sales', 'accounts', 'accounts/journal']) {
             await page.emulateMedia({ media: 'screen' });
             const response = await page.goto(new URL('/reports/' + report, base).href);

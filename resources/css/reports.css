@@ -2,8 +2,7 @@
 .report-document .tablex th, .report-document .tablex td { padding-block: .45rem; }
 .report-period, .report-totals { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1.25rem; margin-block: .65rem; }
 .report-period { color: var(--muted); font-size: .88rem; }
-.report-directory { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .6rem; }
-.report-directory .workspace-tab { justify-content: start; padding: .85rem 1rem; }
+.report-print { flex: none; white-space: nowrap; }
 .report-switch { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .6rem; }
 @media print {
     .report-document .page-head, .report-document .filters, .report-document .no-print,

@@ -107,7 +107,7 @@ The simplified application therefore uses **form at top + recent records below**
 - **Derived information:** nearly the entire workbook is a report or reconciliation result.
 - **Repeated elsewhere:** all operational and ledger workbooks feed these summaries, often through manual copying or cell links.
 - **Authoritative source:** confirmed/finalized application transactions and derived services; reports never become editable source tables.
-- **Simplified replacement:** one `گزارش‌ها` center with report selectors and preserved Jalali filters. Headline totals continue to exclude inappropriate drafts.
+- **Simplified replacement:** `گزارش‌ها` opens Purchases for the general manager, system administrator, accountant, purchase/sales officer and warehouse officer. Transport officers open Weighings. The tabs switch between authorized reports, and bookmarked report URLs keep their Jalali filters. Headline totals continue to exclude inappropriate drafts.
 
 ## One-entry propagation rules
 

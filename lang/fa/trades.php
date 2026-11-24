@@ -5,8 +5,8 @@ return [
         'DRAFT' => 'پیش‌نویس',
         'PENDING_APPROVAL' => 'در انتظار تأیید',
         'AWAITING_WEIGHING' => 'در انتظار وزن‌کشی',
-        'CONFIRMED' => 'تأیید شده',
-        'CANCELLED' => 'لغو شده',
+        'CONFIRMED' => 'تأییدشده',
+        'CANCELLED' => 'لغوشده',
     ],
     'purchase' => [
         'title' => 'خریدها',
