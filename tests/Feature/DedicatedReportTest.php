@@ -9,7 +9,7 @@ use App\Enums\PartnerRole;
 use App\Enums\UserRole;
 use App\Services\MoneyMovementService;
 use App\Services\TradeConfirmationService;
-use App\Services\TradeDraftService;
+use App\Services\TradeEntryService;
 use App\Support\JalaliDate;
 use Dom\HTMLDocument;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -120,16 +120,16 @@ class DedicatedReportTest extends TestCase
         $petrol = $this->tradeProduct('P2');
         $north = $this->tradeWarehouse('شمال');
         $south = $this->tradeWarehouse('جنوب');
-        $drafts = app(TradeDraftService::class);
+        $entries = app(TradeEntryService::class);
         foreach (['purchases', 'sales'] as $kind) {
             if ($kind === 'purchases') {
                 $payload = $this->purchasePayload($supplier, $diesel, $north);
                 $payload['items'][] = $this->purchasePayload($supplier, $petrol, $south)['items'][0];
-                $drafts->createPurchase($payload, $manager->id);
+                $entries->createPurchase($payload, $manager->id);
             } else {
                 $payload = $this->salePayload($customer, $diesel, $north);
                 $payload['items'][] = $this->salePayload($customer, $petrol, $south)['items'][0];
-                $drafts->createSale($payload, $manager->id);
+                $entries->createSale($payload, $manager->id);
             }
             $this->actingAs($manager)->get(route('reports.'.$kind, ['product_id' => $diesel->id, 'warehouse_id' => $south->id]))
                 ->assertOk()->assertViewHas('records', fn ($records) => $records->isEmpty());
@@ -149,7 +149,7 @@ class DedicatedReportTest extends TestCase
             $payload = $this->purchasePayload($supplier, $product, $warehouse, '1000', $rate);
             $payload['purchase_date'] = $date;
             $payload['reference_number'] = $product->code.'-'.$date;
-            $purchase = app(TradeDraftService::class)->createPurchase($payload, $user->id);
+            $purchase = app(TradeEntryService::class)->createPurchase($payload, $user->id);
             app(TradeConfirmationService::class)->confirmPurchase($purchase, $user->id);
         }
         $url = route('reports.inventory', ['date_to' => app(JalaliDate::class)->format('2026-08-08'), 'product_id' => $diesel->id, 'warehouse_id' => $warehouse->id]);

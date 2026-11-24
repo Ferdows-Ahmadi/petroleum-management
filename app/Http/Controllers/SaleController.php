@@ -11,7 +11,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Warehouse;
 use App\Services\TradeConfirmationService;
-use App\Services\TradeDraftService;
+use App\Services\TradeEntryService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,9 +47,9 @@ class SaleController extends Controller
         ]);
     }
 
-    public function store(SaleRequest $request, TradeDraftService $drafts): RedirectResponse
+    public function store(SaleRequest $request, TradeEntryService $entries): RedirectResponse
     {
-        $sale = $drafts->createSale($request->validated(), $request->user()->id);
+        $sale = $entries->createSale($request->validated(), $request->user()->id);
 
         return redirect()->route('sales.show', $sale)->with('success', __('trades.sale.created'));
     }
@@ -76,16 +76,16 @@ class SaleController extends Controller
         return view('sales.form', ['sale' => $sale, ...$this->formOptions()]);
     }
 
-    public function update(SaleRequest $request, Sale $sale, TradeDraftService $drafts): RedirectResponse
+    public function update(SaleRequest $request, Sale $sale, TradeEntryService $entries): RedirectResponse
     {
-        $drafts->updateSale($sale, $request->validated());
+        $entries->updateSale($sale, $request->validated());
 
         return redirect()->route('sales.show', $sale)->with('success', __('trades.sale.updated'));
     }
 
-    public function destroy(Sale $sale, TradeDraftService $drafts): RedirectResponse
+    public function destroy(Sale $sale, TradeEntryService $entries): RedirectResponse
     {
-        $drafts->deleteSale($sale);
+        $entries->deleteSale($sale);
 
         return redirect()->route('sales.index')->with('success', __('trades.sale.deleted'));
     }

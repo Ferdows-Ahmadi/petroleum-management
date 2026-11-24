@@ -15,6 +15,26 @@ class WarehouseTradeReportTest extends TestCase
 {
     use CreatesTradeFixtures, RefreshDatabase;
 
+    public function test_pending_trade_filters_show_only_submitted_legacy_lines_in_the_matching_stage(): void
+    {
+        $user = $this->tradeUser(UserRole::GeneralManager);
+        $supplier = $this->tradePartner([PartnerRole::Supplier]);
+        $customer = $this->tradePartner([PartnerRole::Customer]);
+        $product = $this->tradeProduct();
+        $warehouse = $this->tradeWarehouse();
+        $deal = Deal::create(['deal_date' => '2026-08-01', 'product_id' => $product->id, 'status' => 'COMPLETED']);
+        $deal->sources()->create(['source_type' => 'SUPPLIER', 'supplier_id' => $supplier->id, 'quantity_kg' => '2500', 'rate_per_ton' => '90', 'amount' => '225', 'currency' => 'USD']);
+        $deal->destinations()->create(['destination_type' => 'CUSTOMER', 'customer_id' => $customer->id, 'final_quantity_kg' => '2500', 'rate_per_ton' => '110', 'amount' => '275', 'currency' => 'USD']);
+
+        $this->actingAs($user)->post(route('purchases.store'), $this->purchasePayload($supplier, $product, $warehouse))->assertSessionHasNoErrors();
+        $this->post(route('sales.store'), $this->salePayload($customer, $product, $warehouse))->assertSessionHasNoErrors();
+        $this->get(route('reports.purchases', ['status' => 'PENDING_APPROVAL']))->assertOk()
+            ->assertViewHas('totalRecords', 1)->assertViewHas('totalQuantity', '1000.000')->assertViewHas('dealRows', fn ($rows) => $rows->isEmpty());
+        $this->get(route('reports.sales', ['status' => 'AWAITING_WEIGHING']))->assertOk()
+            ->assertViewHas('totalRecords', 1)->assertViewHas('dealRows', fn ($rows) => $rows->isEmpty());
+        $this->get(route('reports.sales', ['status' => 'PENDING_APPROVAL']))->assertOk()->assertViewHas('totalRecords', 0);
+    }
+
     public function test_warehouse_purchases_use_stored_allocated_cost_and_keep_native_legacy_currency_separate(): void
     {
         $user = $this->tradeUser(UserRole::GeneralManager);

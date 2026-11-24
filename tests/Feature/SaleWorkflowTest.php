@@ -16,7 +16,7 @@ class SaleWorkflowTest extends TestCase
 {
     use CreatesTradeFixtures, RefreshDatabase;
 
-    public function test_authorized_user_can_create_draft_sale_with_both_role_partner(): void
+    public function test_complete_legacy_sale_enters_weighing_and_cannot_be_used_as_an_editable_draft(): void
     {
         $user = $this->tradeUser();
         $partner = $this->tradePartner([PartnerRole::Customer, PartnerRole::Supplier]);
@@ -25,8 +25,30 @@ class SaleWorkflowTest extends TestCase
 
         $sale = Sale::firstOrFail();
         $response->assertRedirect(route('sales.show', $sale));
-        $this->assertSame(TransactionStatus::Draft, $sale->status);
+        $this->assertSame('AWAITING_WEIGHING', $sale->status->value);
+        $this->assertNull($sale->confirmed_at);
+        $this->assertNull($sale->items()->sole()->final_quantity_kg);
+        $this->put(route('sales.update', $sale), $this->salePayload($partner, $this->tradeProduct('ALT'), $this->tradeWarehouse()))
+            ->assertSessionHasErrors('status');
+        $this->delete(route('sales.destroy', $sale))->assertSessionHasErrors('status');
+        $this->post(route('sales.confirm', $sale))->assertSessionHasErrors('weighing');
+        $this->assertDatabaseCount('inventory_movements', 0);
         $this->assertSame($partner->id, $sale->business_partner_id);
+    }
+
+    public function test_sale_can_be_dispatched_before_the_planned_weight_is_known(): void
+    {
+        $user = $this->tradeUser();
+        $customer = $this->tradePartner([PartnerRole::Customer]);
+        $payload = $this->salePayload($customer, $this->tradeProduct(), $this->tradeWarehouse());
+        unset($payload['items'][0]['requested_quantity_kg']);
+
+        $this->actingAs($user)->post(route('sales.store'), $payload)->assertSessionHasNoErrors();
+        $sale = Sale::sole();
+        $this->assertSame(TransactionStatus::AwaitingWeighing, $sale->status);
+        $this->assertNull($sale->items()->sole()->requested_quantity_kg);
+        $this->post(route('sales.confirm', $sale))->assertSessionHasErrors('weighing');
+        $this->assertDatabaseCount('inventory_movements', 0);
     }
 
     public function test_partner_without_customer_role_is_rejected(): void
@@ -67,7 +89,7 @@ class SaleWorkflowTest extends TestCase
         $this->assertDatabaseCount('sales', 0);
     }
 
-    public function test_draft_sale_does_not_affect_inventory(): void
+    public function test_sale_awaiting_weighing_does_not_affect_inventory(): void
     {
         $user = $this->tradeUser();
         $customer = $this->tradePartner([PartnerRole::Customer]);
@@ -116,7 +138,7 @@ class SaleWorkflowTest extends TestCase
 
         $this->post(route('sales.confirm', $sale))->assertSessionHasErrors('stock');
 
-        $this->assertSame(TransactionStatus::Draft, $sale->refresh()->status);
+        $this->assertSame(TransactionStatus::PendingApproval, $sale->refresh()->status);
         $this->assertDatabaseMissing('inventory_movements', ['sale_item_id' => $sale->items()->firstOrFail()->id]);
         $this->assertSame('100.000', app(InventoryBalanceService::class)->balanceFor($warehouse->id, $product->id));
     }
@@ -140,13 +162,15 @@ class SaleWorkflowTest extends TestCase
         ];
         $this->actingAs($user)->post(route('sales.store'), $payload);
         $sale = Sale::firstOrFail();
-        foreach ($sale->items as $item) {
-            $this->finalizeSaleItemWeighing($item, $user);
-        }
+        $this->finalizeSaleItemWeighing($sale->items[0], $user);
+        $this->assertSame(TransactionStatus::AwaitingWeighing, $sale->refresh()->status);
+        $this->post(route('sales.confirm', $sale))->assertSessionHasErrors('weighing');
+        $this->finalizeSaleItemWeighing($sale->items[1], $user);
+        $this->assertSame(TransactionStatus::PendingApproval, $sale->refresh()->status);
 
         $this->post(route('sales.confirm', $sale))->assertSessionHasErrors('stock');
 
-        $this->assertSame(TransactionStatus::Draft, $sale->refresh()->status);
+        $this->assertSame(TransactionStatus::PendingApproval, $sale->refresh()->status);
         $this->assertSame(0, InventoryMovement::whereNotNull('sale_item_id')->count());
         $this->assertSame('500.000', app(InventoryBalanceService::class)->balanceFor($warehouse->id, $firstProduct->id));
         $this->assertSame('10.000', app(InventoryBalanceService::class)->balanceFor($warehouse->id, $secondProduct->id));

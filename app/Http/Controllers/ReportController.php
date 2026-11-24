@@ -249,7 +249,7 @@ class ReportController extends Controller
             'partners' => BusinessPartner::query()->where('is_active', true)->orderBy('name')->get(),
             'products' => Product::query()->where('is_active', true)->orderBy('name')->get(),
             'warehouses' => Warehouse::query()->where('is_active', true)->orderBy('name')->get(),
-            'statuses' => TransactionStatus::cases(),
+            'statuses' => $mode === 'purchases' ? TransactionStatus::purchaseStatuses() : TransactionStatus::cases(),
             'dateInputs' => $dateInputs,
         ];
     }

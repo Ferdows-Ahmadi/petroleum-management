@@ -15,7 +15,7 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WeighingRecord;
 use App\Services\InventoryBalanceService;
-use App\Services\TradeDraftService;
+use App\Services\TradeEntryService;
 use App\Services\WeighingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -381,10 +381,13 @@ class WeighingWorkflowTest extends TestCase
         $customer = $this->tradePartner([PartnerRole::Customer]);
         $product = $this->tradeProduct();
         $warehouse = $this->tradeWarehouse();
-        $sale = app(TradeDraftService::class)->createSale(
+        $sale = app(TradeEntryService::class)->createSale(
             $this->salePayload($customer, $product, $warehouse, $requested, $rate),
             $user->id,
         );
+
+        // These cases cover records submitted before explicit trade workflow states existed.
+        $sale->update(['status' => TransactionStatus::Draft]);
 
         return [$sale, $user, $product, $warehouse, $supplier, $customer];
     }

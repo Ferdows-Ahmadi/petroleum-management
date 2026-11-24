@@ -12,7 +12,7 @@ use App\Models\Purchase;
 use App\Models\Warehouse;
 use App\Services\PrivateEvidenceService;
 use App\Services\TradeConfirmationService;
-use App\Services\TradeDraftService;
+use App\Services\TradeEntryService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,7 +32,7 @@ class PurchaseController extends Controller
                         ->orWhereHas('supplier', fn (Builder $partner) => $partner->where('name', 'like', "%{$search}%"));
                 });
             })
-            ->when(in_array($request->input('status'), array_column(TransactionStatus::cases(), 'value'), true), fn (Builder $query) => $query->where('status', $request->input('status')))
+            ->when(in_array($request->input('status'), array_column(TransactionStatus::purchaseStatuses(), 'value'), true), fn (Builder $query) => $query->where('status', $request->input('status')))
             ->latest('purchase_date')
             ->latest('id')
             ->paginate(15)
@@ -49,12 +49,12 @@ class PurchaseController extends Controller
         ]);
     }
 
-    public function store(PurchaseRequest $request, TradeDraftService $drafts, PrivateEvidenceService $evidence): RedirectResponse
+    public function store(PurchaseRequest $request, TradeEntryService $entries, PrivateEvidenceService $evidence): RedirectResponse
     {
         $data = $request->validated();
         $path = $request->file('ticket_image') ? $evidence->storePurchaseBill($request->file('ticket_image')) : null;
         try {
-            $purchase = $drafts->createPurchase([...$data, 'ticket_image_path' => $path], $request->user()->id);
+            $purchase = $entries->createPurchase([...$data, 'ticket_image_path' => $path], $request->user()->id);
         } catch (\Throwable $exception) {
             $evidence->delete($path);
             throw $exception;
@@ -81,12 +81,12 @@ class PurchaseController extends Controller
         return view('purchases.form', ['purchase' => $purchase, ...$this->formOptions()]);
     }
 
-    public function update(PurchaseRequest $request, Purchase $purchase, TradeDraftService $drafts, PrivateEvidenceService $evidence): RedirectResponse
+    public function update(PurchaseRequest $request, Purchase $purchase, TradeEntryService $entries, PrivateEvidenceService $evidence): RedirectResponse
     {
         $oldPath = $purchase->ticket_image_path;
         $newPath = $request->file('ticket_image') ? $evidence->storePurchaseBill($request->file('ticket_image')) : null;
         try {
-            $drafts->updatePurchase($purchase, [...$request->validated(), ...($newPath ? ['ticket_image_path' => $newPath] : [])]);
+            $entries->updatePurchase($purchase, [...$request->validated(), ...($newPath ? ['ticket_image_path' => $newPath] : [])]);
         } catch (\Throwable $exception) {
             $evidence->delete($newPath);
             throw $exception;
@@ -98,10 +98,10 @@ class PurchaseController extends Controller
         return redirect()->route('purchases.show', $purchase)->with('success', __('trades.purchase.updated'));
     }
 
-    public function destroy(Purchase $purchase, TradeDraftService $drafts, PrivateEvidenceService $evidence): RedirectResponse
+    public function destroy(Purchase $purchase, TradeEntryService $entries, PrivateEvidenceService $evidence): RedirectResponse
     {
         $path = $purchase->ticket_image_path;
-        $drafts->deletePurchase($purchase);
+        $entries->deletePurchase($purchase);
         $evidence->delete($path);
 
         return redirect()->route('purchases.index')->with('success', __('trades.purchase.deleted'));

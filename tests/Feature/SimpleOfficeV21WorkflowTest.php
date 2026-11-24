@@ -60,7 +60,7 @@ class SimpleOfficeV21WorkflowTest extends TestCase
         $this->actingAs($manager)->get(route('purchases.ticket', $purchase))->assertNotFound()->assertDontSee($purchase->ticket_image_path);
     }
 
-    public function test_draft_purchase_bill_replacement_deletes_old_file(): void
+    public function test_historical_draft_purchase_bill_replacement_deletes_old_file(): void
     {
         Storage::fake('local');
         $manager = $this->tradeUser(UserRole::GeneralManager);
@@ -71,6 +71,7 @@ class SimpleOfficeV21WorkflowTest extends TestCase
 
         $this->actingAs($manager)->post(route('purchases.store'), [...$payload, 'ticket_image' => $this->fakePng('old.png')]);
         $purchase = Purchase::firstOrFail();
+        $purchase->update(['status' => TransactionStatus::Draft]);
         $oldPath = $purchase->ticket_image_path;
         $this->actingAs($manager)->put(route('purchases.update', $purchase), [...$payload, 'ticket_image' => $this->fakePng('new.png')])->assertRedirect();
 
@@ -205,7 +206,7 @@ class SimpleOfficeV21WorkflowTest extends TestCase
         Storage::disk('local')->assertMissing($oldPath);
         Storage::disk('local')->assertExists($record->refresh()->ticket_image_path);
         $this->assertSame(WeighingStatus::Finalized, $record->status);
-        $this->assertSame(TransactionStatus::Confirmed, $sale->refresh()->status);
+        $this->assertSame(TransactionStatus::PendingApproval, $sale->refresh()->status);
         $this->assertCount(1, Storage::disk('local')->allFiles('weighbridge'));
     }
 

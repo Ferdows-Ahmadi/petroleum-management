@@ -16,7 +16,7 @@ class PurchaseWorkflowTest extends TestCase
 {
     use CreatesTradeFixtures, RefreshDatabase;
 
-    public function test_authorized_user_can_create_draft_purchase(): void
+    public function test_complete_legacy_purchase_enters_approval_and_cannot_be_used_as_an_editable_draft(): void
     {
         $user = $this->tradeUser();
         $supplier = $this->tradePartner([PartnerRole::Supplier]);
@@ -27,8 +27,13 @@ class PurchaseWorkflowTest extends TestCase
 
         $purchase = Purchase::firstOrFail();
         $response->assertRedirect(route('purchases.show', $purchase));
-        $this->assertSame(TransactionStatus::Draft, $purchase->status);
-        $this->assertDatabaseCount('purchase_items', 1);
+        $this->assertSame('PENDING_APPROVAL', $purchase->status->value);
+        $this->assertNull($purchase->confirmed_at);
+        $this->assertDatabaseCount('inventory_movements', 0);
+        $this->put(route('purchases.update', $purchase), $this->purchasePayload($supplier, $product, $warehouse, '7'))->assertSessionHasErrors('status');
+        $this->delete(route('purchases.destroy', $purchase))->assertSessionHasErrors('status');
+        $this->assertSame('1000.000', $purchase->items()->sole()->quantity_kg);
+        $this->get(route('purchases.show', $purchase))->assertSee(route('purchases.confirm', $purchase), false)->assertDontSee(route('purchases.edit', $purchase), false);
     }
 
     public function test_partner_without_supplier_role_is_rejected(): void
@@ -79,7 +84,7 @@ class PurchaseWorkflowTest extends TestCase
         $this->assertDatabaseCount('purchases', 0);
     }
 
-    public function test_draft_purchase_does_not_affect_inventory(): void
+    public function test_purchase_pending_approval_does_not_affect_inventory(): void
     {
         $user = $this->tradeUser();
         $supplier = $this->tradePartner([PartnerRole::Supplier]);

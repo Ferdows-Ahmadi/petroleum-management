@@ -9,7 +9,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-class TradeDraftService
+class TradeEntryService
 {
     public function __construct(private readonly PetroleumAmountCalculator $amountCalculator) {}
 
@@ -18,7 +18,7 @@ class TradeDraftService
         return DB::transaction(function () use ($data, $userId): Purchase {
             $purchase = Purchase::create([
                 ...Arr::except($data, ['items', 'ticket_image']),
-                'status' => TransactionStatus::Draft,
+                'status' => TransactionStatus::PendingApproval,
                 'created_by' => $userId,
             ]);
             $this->replacePurchaseItems($purchase, $data['items']);
@@ -55,7 +55,7 @@ class TradeDraftService
         return DB::transaction(function () use ($data, $userId): Sale {
             $sale = Sale::create([
                 ...Arr::except($data, 'items'),
-                'status' => TransactionStatus::Draft,
+                'status' => TransactionStatus::AwaitingWeighing,
                 'created_by' => $userId,
             ]);
             $this->replaceSaleItems($sale, $data['items']);

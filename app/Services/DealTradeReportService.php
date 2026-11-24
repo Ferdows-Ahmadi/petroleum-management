@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\DealDestinationType;
 use App\Enums\DealSourceType;
 use App\Enums\DealStatus;
+use App\Enums\TransactionStatus;
 use App\Models\DealDestination;
 use App\Models\DealSource;
 use Illuminate\Support\Collection;
@@ -14,6 +15,10 @@ class DealTradeReportService
     /** @return Collection<int, array<string, mixed>> */
     public function rows(string $mode, array $filters = []): Collection
     {
+        if (in_array($filters['status'] ?? null, [TransactionStatus::AwaitingWeighing->value, TransactionStatus::PendingApproval->value], true)) {
+            return collect(); // These approval/weighing stages belong to the legacy trade records.
+        }
+
         $purchase = $mode === 'purchases';
         $party = $purchase ? 'supplier' : 'customer';
         $partyId = $party.'_id';

@@ -14,7 +14,7 @@
             <input class="control grow" name="search" value="{{ request('search') }}" placeholder="{{ __('common.search') }}...">
             <select class="control filter-control" name="status">
                 <option value="">{{ __('common.all_statuses') }}</option>
-                @foreach(\App\Enums\TransactionStatus::cases() as $status)<option value="{{ $status->value }}" @selected(request('status') === $status->value)>{{ $status->label() }}</option>@endforeach
+                @foreach(\App\Enums\TransactionStatus::purchaseStatuses() as $status)<option value="{{ $status->value }}" @selected(request('status') === $status->value)>{{ $status->label() }}</option>@endforeach
             </select>
             <button class="btnx btn-lightx"><i class="bi bi-funnel"></i>{{ __('common.filter') }}</button>
         </form>

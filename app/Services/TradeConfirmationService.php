@@ -65,6 +65,9 @@ class TradeConfirmationService
                 return false;
             }
 
+            if ($locked->status === TransactionStatus::AwaitingWeighing) {
+                throw ValidationException::withMessages(['weighing' => __('weighings.errors.sale_requires_finalized')]);
+            }
             $this->ensureConfirmable($locked->status);
             $items = $locked->items()->with('weighingRecord')->lockForUpdate()->get();
             $this->ensureHasItems($items->isNotEmpty());
@@ -162,7 +165,7 @@ class TradeConfirmationService
 
     private function ensureConfirmable(TransactionStatus $status): void
     {
-        if ($status !== TransactionStatus::Draft) {
+        if (! $status->allowsApproval()) {
             throw ValidationException::withMessages(['status' => __('trades.errors.not_confirmable')]);
         }
     }

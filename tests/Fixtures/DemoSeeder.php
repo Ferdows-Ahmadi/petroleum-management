@@ -11,7 +11,6 @@ use App\Enums\FinancialAccountType;
 use App\Enums\FinancialTransactionType;
 use App\Enums\MoneyMovementType;
 use App\Enums\PartnerRole;
-use App\Enums\TransactionStatus;
 use App\Enums\UserRole;
 use App\Enums\WeighingStatus;
 use App\Models\BusinessPartner;
@@ -34,7 +33,7 @@ use App\Services\DealSettlementService;
 use App\Services\FinancialTransactionService;
 use App\Services\MoneyMovementService;
 use App\Services\TradeConfirmationService;
-use App\Services\TradeDraftService;
+use App\Services\TradeEntryService;
 use App\Services\WeighingService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -120,13 +119,13 @@ class DemoSeeder extends Seeder
             ->whereHas('roles', fn ($query) => $query->where('role', PartnerRole::Customer->value))
             ->orderBy('id')
             ->firstOrFail();
-        $drafts = app(TradeDraftService::class);
+        $entries = app(TradeEntryService::class);
         $confirmation = app(TradeConfirmationService::class);
         $weighings = app(WeighingService::class);
 
         $purchase = Purchase::where('reference_number', 'DEMO-PURCHASE-001')->first();
         if (! $purchase) {
-            $purchase = $drafts->createPurchase([
+            $purchase = $entries->createPurchase([
                 'business_partner_id' => $supplier->id,
                 'purchase_date' => now()->toDateString(),
                 'reference_number' => 'DEMO-PURCHASE-001',
@@ -144,7 +143,7 @@ class DemoSeeder extends Seeder
 
         $sale = Sale::where('reference_number', 'DEMO-SALE-001')->first();
         if (! $sale) {
-            $sale = $drafts->createSale([
+            $sale = $entries->createSale([
                 'business_partner_id' => $customer->id,
                 'sale_date' => now()->toDateString(),
                 'reference_number' => 'DEMO-SALE-001',
@@ -165,7 +164,7 @@ class DemoSeeder extends Seeder
         }
         $weighing = $saleItem->weighingRecord;
 
-        if (! $weighing && $sale->status === TransactionStatus::Draft) {
+        if (! $weighing && $sale->status->allowsWeighing()) {
             $weighing = $weighings->create([
                 'sale_item_id' => $saleItem->id,
                 'ticket_number' => 'DEMO-WG-001',
@@ -197,7 +196,7 @@ class DemoSeeder extends Seeder
             ]);
         }
 
-        if ($sale->status === TransactionStatus::Draft) {
+        if ($sale->refresh()->status->allowsApproval()) {
             $confirmation->confirmSale($sale, $user->id);
         }
 
@@ -326,7 +325,7 @@ class DemoSeeder extends Seeder
         $ledgerSupplier->roles()->updateOrCreate(['role' => PartnerRole::Supplier]);
         $ledgerPurchase = Purchase::where('reference_number', 'DEMO-PURCHASE-LEDGER-001')->first();
         if (! $ledgerPurchase) {
-            $ledgerPurchase = $drafts->createPurchase([
+            $ledgerPurchase = $entries->createPurchase([
                 'business_partner_id' => $ledgerSupplier->id,
                 'purchase_date' => now()->toDateString(),
                 'reference_number' => 'DEMO-PURCHASE-LEDGER-001',
@@ -358,7 +357,7 @@ class DemoSeeder extends Seeder
         $financialTransactions->confirm($ledgerPayment, $user->id);
 
         if (! Sale::where('reference_number', 'DEMO-SALE-DRAFT-001')->exists()) {
-            $drafts->createSale([
+            $entries->createSale([
                 'business_partner_id' => $customer->id,
                 'sale_date' => now()->toDateString(),
                 'reference_number' => 'DEMO-SALE-DRAFT-001',

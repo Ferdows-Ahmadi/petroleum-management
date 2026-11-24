@@ -12,7 +12,7 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WeighingRecord;
 use App\Services\TradeConfirmationService;
-use App\Services\TradeDraftService;
+use App\Services\TradeEntryService;
 use App\Services\WeighingService;
 
 trait CreatesTradeFixtures
@@ -103,7 +103,7 @@ trait CreatesTradeFixtures
 
     protected function addStock(User $user, BusinessPartner $supplier, Product $product, Warehouse $warehouse, string $quantity): Purchase
     {
-        $purchase = app(TradeDraftService::class)->createPurchase(
+        $purchase = app(TradeEntryService::class)->createPurchase(
             $this->purchasePayload($supplier, $product, $warehouse, $quantity),
             $user->id,
         );

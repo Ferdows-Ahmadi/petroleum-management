@@ -15,7 +15,7 @@ class SimpleOfficeTransactionService
 {
     public function __construct(
         private readonly InlinePartnerService $partners,
-        private readonly TradeDraftService $drafts,
+        private readonly TradeEntryService $entries,
         private readonly TradeConfirmationService $confirmation,
         private readonly WeighingService $weighings,
         private readonly FinancialTransactionService $finance,
@@ -35,7 +35,7 @@ class SimpleOfficeTransactionService
                     $data['partner_phone'] ?? null,
                     PartnerRole::Supplier,
                 );
-                $purchase = $this->drafts->createPurchase([
+                $purchase = $this->entries->createPurchase([
                     'business_partner_id' => $partner->id,
                     'purchase_date' => $data['purchase_date'],
                     'reference_number' => $data['reference_number'] ?? null,
@@ -75,7 +75,7 @@ class SimpleOfficeTransactionService
                     $data['partner_phone'] ?? null,
                     PartnerRole::Customer,
                 );
-                $sale = $this->drafts->createSale([
+                $sale = $this->entries->createSale([
                     'business_partner_id' => $partner->id,
                     'sale_date' => $data['sale_date'],
                     'reference_number' => $data['reference_number'] ?? null,

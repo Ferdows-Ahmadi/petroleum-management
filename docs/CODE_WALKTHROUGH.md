@@ -27,18 +27,18 @@ Read:
 1. Purchase routes in `routes/web.php`
 2. `PurchaseController`
 3. `PurchaseRequest` and `ConvertsJalaliDates`
-4. `TradeDraftService::createPurchase` / `updatePurchase`
+4. `TradeEntryService::createPurchase` / `updatePurchase`
 5. `TradeConfirmationService::confirmPurchase`
 6. `PetroleumAmountCalculator`
 7. `Purchase`, `PurchaseItem`, and `InventoryMovement`
 8. `resources/views/purchases/*`
 9. `PurchaseWorkflowTest` and `TradeAuthorizationTest`
 
-The crucial transition is confirmation: it writes the status and one `PURCHASE_IN` source movement per item in one database transaction.
+A new purchase enters PENDING_APPROVAL with its submitted lines locked. Staff use the existing confirmation action to post it. Confirmation writes the status and one `PURCHASE_IN` source movement per item in one database transaction.
 
 ## Sales and sale confirmation
 
-Use the same path through `SaleController`, `SaleRequest`, `TradeDraftService`, and the sale branch of `TradeConfirmationService`. Then read `Sale`, `SaleItem`, and `SaleWorkflowTest`. Pay attention to grouped warehouse/product stock checks, warehouse locking, final-quantity validation, source uniqueness, and idempotent confirmation.
+Use the same path through `SaleController`, `SaleRequest`, `TradeEntryService`, and the sale branch of `TradeConfirmationService`. Then read `Sale`, `SaleItem`, and `SaleWorkflowTest`. A submitted sale enters AWAITING_WEIGHING. Finalizing the last line sends it to PENDING_APPROVAL. Staff explicitly confirm the sale before stock is posted. Historical DRAFT records retain their edit and approval paths. Pay attention to grouped warehouse/product stock checks, warehouse locking, final-quantity validation, source uniqueness, and idempotent confirmation.
 
 ## Weighing
 
