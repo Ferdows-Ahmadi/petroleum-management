@@ -45,7 +45,7 @@ return [
     'weighing_quantity_note' => 'مقدار درخواستی تقریبی است. مقدار و مبلغ نهایی فقط از وزن‌کشی نهایی‌شده تعیین می‌شود.',
     'pending_weighing' => 'در انتظار وزن‌کشی',
     'confirmation_blocked_by_weighing' => 'این فروش تا نهایی‌شدن وزن‌کشی همه اقلام قابل تأیید نیست.',
-    'rate_per_ton' => 'نرخ فی تن',
+    'rate_per_ton' => 'نرخ هر تُن',
     'amount' => 'مبلغ',
     'total_amount' => 'مبلغ مجموعی',
     'reference_number' => 'شماره مرجع',

@@ -1,3 +1,4 @@
+import { bindOfficeMenu } from './office-menu.js';
 import { bindFuelShortcuts } from './fuel-shortcuts.js';
 import { tradeCents, tradePreviewCents, formatCents, netWeight, scaled, formatWeight } from './decimal.js';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
@@ -14,17 +15,7 @@ const formatTrimmed = (value, maximumFractionDigits = 3) => Number(value || 0).t
     maximumFractionDigits,
 });
 
-const menuButton = document.querySelector('[data-menu]');
-const sidebar = document.querySelector('[data-sidebar]');
-
-if (menuButton && sidebar) {
-    menuButton.addEventListener('click', () => sidebar.classList.toggle('open'));
-    document.addEventListener('click', (event) => {
-        if (window.innerWidth < 992 && sidebar.classList.contains('open') && !sidebar.contains(event.target) && !menuButton.contains(event.target)) {
-            sidebar.classList.remove('open');
-        }
-    });
-}
+bindOfficeMenu(document.querySelector('[data-menu]'), document.getElementById('office-menu'), document, window.matchMedia('(max-width: 1050px)'));
 
 document.querySelectorAll('[data-password-toggle]').forEach((button) => {
     const input = button.closest('.password-control')?.querySelector('input');

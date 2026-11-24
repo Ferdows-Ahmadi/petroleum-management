@@ -11,7 +11,7 @@
         @if($canManage && $financialTransaction->status === \App\Enums\FinancialTransactionStatus::Draft)<a class="btnx btn-lightx" href="{{ route($mode.'.edit', $financialTransaction) }}"><i class="bi bi-pencil"></i>{{ __('common.edit') }}</a><form method="POST" action="{{ route($mode.'.confirm', $financialTransaction) }}" data-confirm="{{ __('finance.confirm_question') }}">@csrf<button class="btnx btn-primaryx" type="submit"><i class="bi bi-check2-circle"></i>{{ __('finance.confirm') }}</button></form>@endif
         <a class="btnx btn-lightx" href="{{ route($mode.'.index') }}">{{ __('common.back') }}</a>
     </x-page-header>
-    @if($financialTransaction->status === \App\Enums\FinancialTransactionStatus::Confirmed)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('finance.status.CONFIRMED') }}</strong>{{ __('finance.confirmed_notice') }}</div></div>@endif
+    @if($financialTransaction->status === \App\Enums\FinancialTransactionStatus::Confirmed)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('finance.status.CONFIRMED') }}</strong> <span>{{ __('finance.confirmed_notice') }}</span></div></div>@endif
     <div class="detail-grid"><section class="cardx card-pad"><div class="info-list">
         <div class="info-item"><div class="info-label">{{ __('finance.transaction_date') }}</div><div class="info-value ltr-value">@jalali($financialTransaction->transaction_date)</div></div>
         <div class="info-item"><div class="info-label">{{ __('finance.transaction_type') }}</div><div class="info-value">{{ $financialTransaction->transaction_type->label() }}</div></div>

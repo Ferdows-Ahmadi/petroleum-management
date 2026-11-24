@@ -13,7 +13,7 @@
         <a class="btnx btn-lightx" href="{{ route('purchases.index') }}">{{ __('common.back') }}</a>
     </x-page-header>
 
-    @if($purchase->status === \App\Enums\TransactionStatus::Confirmed)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('trades.status.CONFIRMED') }}</strong>{{ __('trades.confirmed_locked') }}</div></div>@endif
+    @if($purchase->status === \App\Enums\TransactionStatus::Confirmed)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('trades.status.CONFIRMED') }}</strong> <span>{{ __('trades.confirmed_locked') }}</span></div></div>@endif
 
     <div class="detail-grid">
         <div class="stack">

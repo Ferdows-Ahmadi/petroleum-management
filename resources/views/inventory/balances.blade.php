@@ -4,7 +4,7 @@
 
 @section('content')
     <x-page-header :title="__('inventory.balances')" :subtitle="__('inventory.balances_subtitle')" />
-    <div class="notice subtle-notice"><i class="bi bi-calculator"></i><div><strong>{{ __('inventory.balance') }}</strong>{{ __('inventory.calculated_notice') }}</div></div>
+    <div class="notice subtle-notice"><i class="bi bi-calculator"></i><div><strong>{{ __('inventory.balance') }}</strong> <span>{{ __('inventory.calculated_notice') }}</span></div></div>
     <section class="cardx card-pad">
         <form class="filters" method="GET">
             <select class="control filter-control" name="warehouse_id"><option value="">{{ __('trades.warehouse') }} — {{ __('common.all_statuses') }}</option>@foreach($warehouses as $warehouse)<option value="{{ $warehouse->id }}" @selected((string) request('warehouse_id') === (string) $warehouse->id)>{{ $warehouse->name }}</option>@endforeach</select>

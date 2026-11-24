@@ -1,3 +1,6 @@
+@if(session('error'))
+    <div class="alertx alert-errorx" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ session('error') }}</div>
+@endif
 @if(session('success'))
     <div class="alertx alert-successx" role="status"><i class="bi bi-check-circle"></i>{{ session('success') }}</div>
 @endif

@@ -23,9 +23,9 @@
     </x-page-header>
 
     @if($sale->status === \App\Enums\TransactionStatus::Draft && !$allWeighingsFinalized)
-        <div class="notice"><i class="bi bi-exclamation-circle"></i><div><strong>{{ __('trades.pending_weighing') }}</strong>{{ __('trades.confirmation_blocked_by_weighing') }}</div></div>
+        <div class="notice"><i class="bi bi-exclamation-circle"></i><div><strong>{{ __('trades.pending_weighing') }}</strong> <span>{{ __('trades.confirmation_blocked_by_weighing') }}</span></div></div>
     @endif
-    @if($sale->status === \App\Enums\TransactionStatus::Confirmed)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('trades.status.CONFIRMED') }}</strong>{{ __('trades.confirmed_locked') }}</div></div>@endif
+    @if($sale->status === \App\Enums\TransactionStatus::Confirmed)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('trades.status.CONFIRMED') }}</strong> <span>{{ __('trades.confirmed_locked') }}</span></div></div>@endif
 
     <div class="detail-grid">
         <div class="stack">
