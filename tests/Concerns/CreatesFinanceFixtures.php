@@ -4,6 +4,7 @@ namespace Tests\Concerns;
 
 use App\Enums\Currency;
 use App\Enums\FinancialAccountType;
+use App\Enums\FinancialTransactionStatus;
 use App\Enums\FinancialTransactionType;
 use App\Enums\UserRole;
 use App\Models\BusinessPartner;
@@ -54,6 +55,9 @@ trait CreatesFinanceFixtures
         $transaction = $service->create($payload, $type, $user->id);
         if ($confirm) {
             $service->confirm($transaction, $user->id);
+        } else {
+            // Older installations can contain editable drafts; current submissions are locked for approval.
+            $transaction->update(['status' => FinancialTransactionStatus::Draft]);
         }
 
         return $transaction->refresh();

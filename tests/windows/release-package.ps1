@@ -39,6 +39,9 @@ try {
     }
     $model = & git hash-object --no-filters (Join-Path $app 'app/Models/Product.php')
     Assert-True ($model -eq (& git -C $checkout rev-parse "${revision}:app/Models/Product.php")) 'Shipped source differs from the Git object.'
+    foreach ($file in @('scripts/upgrade-windows.ps1','scripts/upgrade-verification.ps1','scripts/upgrade-database-identity.php','docs/windows-upgrade-fa.md')) {
+        Assert-True (Test-Path -LiteralPath (Join-Path $app $file) -PathType Leaf) "Missing upgrade component: $file"
+    }
     $installed = Get-Content -Raw -Encoding UTF8 (Join-Path $app 'vendor/composer/installed.json') | ConvertFrom-Json
     $lock = Get-Content -Raw -Encoding UTF8 (Join-Path $app 'composer.lock') | ConvertFrom-Json
     $expected = @($lock.packages | ForEach-Object { "$($_.name) $($_.version) $($_.source.reference)" })

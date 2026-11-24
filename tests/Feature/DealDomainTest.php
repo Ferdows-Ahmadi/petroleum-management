@@ -14,11 +14,58 @@ use App\Services\DealService;
 use App\Services\PartnerLedgerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Tests\Fixtures\HistoricalDeal;
 use Tests\TestCase;
 
 class DealDomainTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_complete_registration_requires_a_supported_action_even_when_all_commercial_data_is_valid(): void
+    {
+        $user = User::factory()->create();
+        $data = [
+            'deal_date' => '2026-08-30', 'product_id' => Product::factory()->create()->id,
+            'supplier_id' => BusinessPartner::factory()->create()->id, 'source_quantity_kg' => '1000', 'source_rate_per_ton' => '480',
+            'customer_id' => BusinessPartner::factory()->create()->id, 'final_quantity_kg' => '1000', 'destination_rate_per_ton' => '510',
+        ];
+        $service = app(DealService::class);
+        foreach ([[], ['submit_action' => 'unexpected'], ['submit_action' => 'draft']] as $action) {
+            try {
+                $service->create($data + $action, $user->id);
+                $this->fail('Unsupported registration action accepted.');
+            } catch (ValidationException $error) {
+                $this->assertArrayHasKey('submit_action', $error->errors());
+            }
+        }
+        try {
+            $service->create($data + ['submit_action' => 'register', 'partial_delivery' => true], $user->id);
+            $this->fail('A fully delivered deal cannot be parked as partial.');
+        } catch (ValidationException $error) {
+            $this->assertArrayHasKey('final_quantity_kg', $error->errors());
+        }
+        $this->assertDatabaseEmpty('deals');
+        $this->assertDatabaseEmpty('deal_sources');
+        $this->assertDatabaseEmpty('deal_destinations');
+        $this->assertDatabaseEmpty('deal_allocations');
+        $this->assertDatabaseEmpty('business_partner_roles');
+
+        $historical = HistoricalDeal::draft($data, $user->id);
+        try {
+            $service->updateDraft($historical, $data + ['submit_action' => 'unexpected', 'notes' => 'Should roll back'], $user->id);
+            $this->fail('Unsupported edit action accepted.');
+        } catch (ValidationException $error) {
+            $this->assertArrayHasKey('submit_action', $error->errors());
+        }
+        $this->assertNull($historical->fresh()->notes);
+        $this->assertSame(DealStatus::Draft, $historical->fresh()->status);
+
+        $registered = $service->create($data + ['submit_action' => 'register'], $user->id);
+        $this->assertSame(DealStatus::Completed, $registered->status);
+        $this->assertSame('510.00', $registered->destinations->sole()->amount);
+        $this->assertDatabaseCount('deals', 2);
+        $this->assertDatabaseEmpty('money_movements');
+    }
 
     public function test_deal_has_one_product_and_normalized_source_and_destination_rows(): void
     {
@@ -161,7 +208,7 @@ class DealDomainTest extends TestCase
             'weighing_mode' => WeighingMode::TwoStage->value,
             'weighing_at' => '2026-08-30 09:30:00',
             'first_weight_kg' => '28000.000',
-            'submit_action' => 'draft',
+            'submit_action' => 'register',
         ], User::factory()->create()->id);
 
         $this->assertSame(DealStatus::InProgress, $deal->status);

@@ -51,7 +51,7 @@
                 <section class="cardx card-pad sticky-summary"><div class="card-title">{{ __('trades.total_amount') }}</div><div class="calc-total ltr-value"><span data-trade-total>0.00</span> <span data-total-currency>{{ $selectedCurrency }}</span></div></section>
             </aside>
         </div>
-        <div class="form-actions"><button class="btnx btn-primaryx" type="submit"><i class="bi bi-check2"></i>{{ __('trades.save_draft') }}</button><a class="btnx btn-lightx" href="{{ $purchase->exists ? route('purchases.show', $purchase) : route('purchases.index') }}">{{ __('common.cancel') }}</a></div>
+        <div class="form-actions"><button class="btnx btn-primaryx" type="submit"><i class="bi bi-check2"></i>ثبت خرید برای تأیید</button><a class="btnx btn-lightx" href="{{ $purchase->exists ? route('purchases.show', $purchase) : route('purchases.index') }}">{{ __('common.cancel') }}</a></div>
 
         <template data-item-template>
             <div class="trade-item" data-trade-item>

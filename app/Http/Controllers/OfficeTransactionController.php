@@ -20,7 +20,6 @@ use App\Models\WeighingRecord;
 use App\Services\PartnerLedgerService;
 use App\Services\PrivateEvidenceService;
 use App\Services\SimpleOfficeTransactionService;
-use App\Services\TradeConfirmationService;
 use App\Services\WeighingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -109,7 +108,7 @@ class OfficeTransactionController extends Controller
 
     public function startWeighing(PendingWeighingRequest $request, Sale $sale, WeighingService $service, PrivateEvidenceService $evidence): RedirectResponse
     {
-        abort_unless($sale->status === TransactionStatus::Draft, 404);
+        abort_unless($sale->status->allowsWeighing(), 404);
         $item = $sale->items()->whereDoesntHave('weighingRecord')->firstOrFail();
         $data = $request->validated();
         $path = $request->file('ticket_image') ? $evidence->storeWeighbridgeBill($request->file('ticket_image')) : null;
@@ -128,27 +127,28 @@ class OfficeTransactionController extends Controller
             $service->finalize($record, $request->user()->id);
         }
 
-        return redirect()->route('office.transactions', ['tab' => 'sale'])->with('success', $record->status === WeighingStatus::Finalized ? __('office.weighing_finalized') : __('office.first_weight_saved'));
+        if ($record->refresh()->status === WeighingStatus::Finalized) {
+            return $this->afterFinalWeighing($request, $sale);
+        }
+
+        return redirect()->route('office.transactions', ['tab' => 'sale'])->with('success', __('office.first_weight_saved'));
     }
 
-    public function completeWeighing(CompleteWeighingRequest $request, Sale $sale, WeighingService $weighings, TradeConfirmationService $confirmation, PrivateEvidenceService $evidence): RedirectResponse
+    public function completeWeighing(CompleteWeighingRequest $request, Sale $sale, WeighingService $weighings, PrivateEvidenceService $evidence): RedirectResponse
     {
         $record = $sale->items()->with('weighingRecord')->get()->pluck('weighingRecord')->filter()->first();
-        abort_unless($sale->status === TransactionStatus::Draft && $record instanceof WeighingRecord && $record->status === WeighingStatus::Draft, 404);
+        abort_unless($sale->status->allowsWeighing() && $record instanceof WeighingRecord && $record->status === WeighingStatus::Draft, 404);
 
         abort_unless($record->weighing_mode === WeighingMode::TwoStage, 404);
         $oldPath = $record->ticket_image_path;
         $newPath = $request->file('ticket_image') ? $evidence->storeWeighbridgeBill($request->file('ticket_image')) : null;
         try {
-            DB::transaction(function () use ($request, $sale, $record, $weighings, $confirmation, $newPath): void {
+            DB::transaction(function () use ($request, $record, $weighings, $newPath): void {
                 if ($newPath) {
                     $weighings->replaceDraftTicketPath($record, $newPath);
                 }
                 $weighings->completeSecondWeight($record, $request->validated('second_weight_kg'));
                 $weighings->finalize($record, $request->user()->id);
-                if ($request->user()->hasAnyRole(UserRole::GeneralManager->value, UserRole::SystemAdmin->value)) {
-                    $confirmation->confirmSale($sale, $request->user()->id);
-                }
             });
         } catch (\Throwable $exception) {
             $evidence->delete($newPath);
@@ -158,6 +158,15 @@ class OfficeTransactionController extends Controller
             $evidence->delete($oldPath);
         }
 
-        return redirect()->route('office.transactions', ['tab' => 'sale'])->with('success', __('office.weighing_finalized'));
+        return $this->afterFinalWeighing($request, $sale);
+    }
+
+    private function afterFinalWeighing(Request $request, Sale $sale): RedirectResponse
+    {
+        $response = $request->user()->hasAnyRole(UserRole::GeneralManager, UserRole::SystemAdmin)
+            ? redirect()->route('sales.show', $sale)
+            : redirect()->route('office.transactions', ['tab' => 'sale']);
+
+        return $response->with('success', __('office.weighing_finalized'));
     }
 }

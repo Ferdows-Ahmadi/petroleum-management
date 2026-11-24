@@ -15,7 +15,7 @@ use App\Models\Sale;
 use App\Services\FinancialAccountBalanceService;
 use App\Services\InventoryBalanceService;
 use App\Services\PartnerLedgerService;
-use App\Services\TradeDraftService;
+use App\Services\TradeEntryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesFinanceFixtures;
 use Tests\Concerns\CreatesTradeFixtures;
@@ -110,7 +110,7 @@ class SimpleOfficeWorkflowTest extends TestCase
             'warehouse_id' => $warehouse->id,
             'requested_quantity_kg' => '1000',
             'rate_per_ton' => '1200',
-            'submit_action' => 'draft',
+            'submit_action' => 'await_weighing',
         ])->assertRedirect();
 
         $this->assertSame(1, BusinessPartner::where('name', $partner->name)->count());
@@ -139,7 +139,7 @@ class SimpleOfficeWorkflowTest extends TestCase
             'rate_per_ton' => '1310',
             'weighing_at' => '1405/05/19 09:00',
             'first_weight_kg' => '34475',
-            'submit_action' => 'draft',
+            'submit_action' => 'await_weighing',
         ])->assertRedirect();
 
         $sale = Sale::where('reference_number', 'OFFICE-WAIT-001')->with('items.weighingRecord')->firstOrFail();
@@ -154,9 +154,13 @@ class SimpleOfficeWorkflowTest extends TestCase
             ->assertSessionHasErrors('second_weight_kg');
         $this->assertSame(WeighingStatus::Draft, $weighing->refresh()->status);
 
-        $this->actingAs($manager)->post(route('office.transactions.sales.weighing.complete', $sale), ['second_weight_kg' => '15120'])->assertRedirect();
+        $this->actingAs($manager)->post(route('office.transactions.sales.weighing.complete', $sale), ['second_weight_kg' => '15120'])->assertRedirect(route('sales.show', $sale));
         $sale->refresh()->load('items.weighingRecord');
-        $this->assertSame(TransactionStatus::Confirmed, $sale->status);
+        $this->assertSame(TransactionStatus::PendingApproval, $sale->status);
+        $this->assertNull($sale->confirmed_at);
+        $this->assertDatabaseMissing('inventory_movements', ['sale_item_id' => $sale->items->first()->id]);
+        $this->post(route('sales.confirm', $sale))->assertSessionHasNoErrors();
+        $this->assertSame(TransactionStatus::Confirmed, $sale->refresh()->status);
         $this->assertSame('19355.000', $sale->items->first()->weighingRecord->net_weight_kg);
     }
 
@@ -215,7 +219,7 @@ class SimpleOfficeWorkflowTest extends TestCase
         $customer = $this->tradePartner([PartnerRole::Customer]);
         $product = $this->tradeProduct('OFF-AUTH');
         $warehouse = $this->tradeWarehouse('ذخیره صلاحیت');
-        $sale = app(TradeDraftService::class)->createSale($this->salePayload($customer, $product, $warehouse), $tradeUser->id);
+        $sale = app(TradeEntryService::class)->createSale($this->salePayload($customer, $product, $warehouse), $tradeUser->id);
 
         $this->actingAs($tradeUser)->post(route('office.transactions.sales.weighing.store', $sale), [
             'weighing_at' => '1405/05/19 10:00',
@@ -235,7 +239,7 @@ class SimpleOfficeWorkflowTest extends TestCase
         $this->actingAs($warehouseUser)->get(route('office.transactions'))
             ->assertOk()
             ->assertSee(route('sales.show', $sale), false)
-            ->assertSee(__('trades.total_amount'))
+            ->assertDontSee(__('trades.total_amount'))
             ->assertDontSee(__('office.partner_balance'));
     }
 
@@ -278,6 +282,7 @@ class SimpleOfficeWorkflowTest extends TestCase
         $account = $this->financeAccount($manager, Currency::Usd, '1000', '2026-08-01');
 
         $this->actingAs($manager)->post(route('office.finance.expenses.store'), [
+            'confirm_now' => 1,
             'financial_account_id' => $account->id,
             'transaction_date' => '1405/05/19',
             'amount' => '125.50',

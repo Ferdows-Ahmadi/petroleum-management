@@ -16,7 +16,7 @@ use App\Models\User;
 use App\Services\FinancialAccountBalanceService;
 use App\Services\PartnerLedgerService;
 use App\Services\TradeConfirmationService;
-use App\Services\TradeDraftService;
+use App\Services\TradeEntryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesFinanceFixtures;
 use Tests\Concerns\CreatesTradeFixtures;
@@ -77,9 +77,9 @@ class PartnerFinanceTest extends TestCase
         [$partner, $user] = $this->partnerContext();
         $product = $this->tradeProduct('BOTH');
         $warehouse = $this->tradeWarehouse();
-        $purchase = app(TradeDraftService::class)->createPurchase($this->purchasePayload($partner, $product, $warehouse, '1000', '1000'), $user->id);
+        $purchase = app(TradeEntryService::class)->createPurchase($this->purchasePayload($partner, $product, $warehouse, '1000', '1000'), $user->id);
         app(TradeConfirmationService::class)->confirmPurchase($purchase, $user->id);
-        $sale = app(TradeDraftService::class)->createSale($this->salePayload($partner, $product, $warehouse, '500', '1000'), $user->id);
+        $sale = app(TradeEntryService::class)->createSale($this->salePayload($partner, $product, $warehouse, '500', '1000'), $user->id);
         $this->finalizeSaleItemWeighing($sale->items()->firstOrFail(), $user, '1500', '1000');
         app(TradeConfirmationService::class)->confirmSale($sale, $user->id);
         $account = $this->financeAccount($user);
@@ -299,7 +299,7 @@ class PartnerFinanceTest extends TestCase
         $product = $this->tradeProduct('FIN-SALE');
         $warehouse = $this->tradeWarehouse();
         $this->addStock($user, $supplier, $product, $warehouse, '30000');
-        $sale = app(TradeDraftService::class)->createSale($this->salePayload($customer, $product, $warehouse, '20000', '1310'), $user->id);
+        $sale = app(TradeEntryService::class)->createSale($this->salePayload($customer, $product, $warehouse, '20000', '1310'), $user->id);
         $this->finalizeSaleItemWeighing($sale->items()->firstOrFail(), $user, '34475', '15120');
         app(TradeConfirmationService::class)->confirmSale($sale, $user->id);
 
@@ -313,7 +313,7 @@ class PartnerFinanceTest extends TestCase
         $supplier = $this->tradePartner([PartnerRole::Supplier]);
         $product = $this->tradeProduct('FIN-PUR');
         $warehouse = $this->tradeWarehouse();
-        $purchase = app(TradeDraftService::class)->createPurchase($this->purchasePayload($supplier, $product, $warehouse, $quantity, $rate), $user->id);
+        $purchase = app(TradeEntryService::class)->createPurchase($this->purchasePayload($supplier, $product, $warehouse, $quantity, $rate), $user->id);
         app(TradeConfirmationService::class)->confirmPurchase($purchase, $user->id);
 
         return [$purchase->refresh()->load('items'), $supplier, $user];

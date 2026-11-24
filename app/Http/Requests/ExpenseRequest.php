@@ -5,10 +5,9 @@ namespace App\Http\Requests;
 use App\Enums\Currency;
 use App\Enums\ExpenseCategory;
 use App\Http\Requests\Concerns\ConvertsJalaliDates;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class ExpenseRequest extends FormRequest
+class ExpenseRequest extends OperationalEntryRequest
 {
     use ConvertsJalaliDates;
 
@@ -35,6 +34,7 @@ class ExpenseRequest extends FormRequest
             'payee' => ['nullable', 'string', 'max:150'],
             'reference' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:3000'],
+            'confirm_now' => $this->routeIs('office.finance.expenses.store') ? ['required', 'accepted'] : ['prohibited'],
             'business_partner_id' => ['prohibited'],
             'transaction_type' => ['prohibited'],
         ];

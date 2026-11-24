@@ -8,10 +8,18 @@
         $canManage = auth()->user()->hasAnyRole('GENERAL_MANAGER', 'ACCOUNTANT');
     @endphp
     <x-page-header :title="__('finance.transaction_details')" :subtitle="$financialTransaction->reference_code">
-        @if($canManage && $financialTransaction->status === \App\Enums\FinancialTransactionStatus::Draft)<a class="btnx btn-lightx" href="{{ route($mode.'.edit', $financialTransaction) }}"><i class="bi bi-pencil"></i>{{ __('common.edit') }}</a><form method="POST" action="{{ route($mode.'.confirm', $financialTransaction) }}" data-confirm="{{ __('finance.confirm_question') }}">@csrf<button class="btnx btn-primaryx" type="submit"><i class="bi bi-check2-circle"></i>{{ __('finance.confirm') }}</button></form>@endif
+        @if($canManage && $financialTransaction->status === \App\Enums\FinancialTransactionStatus::Draft)
+            <a class="btnx btn-lightx" href="{{ route($mode.'.edit', $financialTransaction) }}"><i class="bi bi-pencil"></i>{{ __('common.edit') }}</a>
+        @endif
+        @if($canManage && $financialTransaction->status->awaitsConfirmation())
+            <form method="POST" action="{{ route($mode.'.confirm', $financialTransaction) }}" data-confirm="{{ __('finance.confirm_question') }}">
+                @csrf
+                <button class="btnx btn-primaryx" type="submit"><i class="bi bi-check2-circle"></i>{{ __('finance.confirm') }}</button>
+            </form>
+        @endif
         <a class="btnx btn-lightx" href="{{ route($mode.'.index') }}">{{ __('common.back') }}</a>
     </x-page-header>
-    @if($financialTransaction->status === \App\Enums\FinancialTransactionStatus::Confirmed)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('finance.status.CONFIRMED') }}</strong>{{ __('finance.confirmed_notice') }}</div></div>@endif
+    @if($financialTransaction->status === \App\Enums\FinancialTransactionStatus::Confirmed)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('finance.status.CONFIRMED') }}</strong> <span>{{ __('finance.confirmed_notice') }}</span></div></div>@endif
     <div class="detail-grid"><section class="cardx card-pad"><div class="info-list">
         <div class="info-item"><div class="info-label">{{ __('finance.transaction_date') }}</div><div class="info-value ltr-value">@jalali($financialTransaction->transaction_date)</div></div>
         <div class="info-item"><div class="info-label">{{ __('finance.transaction_type') }}</div><div class="info-value">{{ $financialTransaction->transaction_type->label() }}</div></div>
@@ -23,5 +31,20 @@
         <div class="info-item"><div class="info-label">{{ __('common.reference') }}</div><div class="info-value">{{ $financialTransaction->reference ?: __('common.not_available') }}</div></div>
         @if($financialTransaction->expense_category)<div class="info-item"><div class="info-label">{{ __('finance.expense_category') }}</div><div class="info-value">{{ $financialTransaction->expense_category->label() }}</div></div>@endif
         <div class="info-item"><div class="info-label">{{ __('finance.description') }}</div><div class="info-value">{{ $financialTransaction->description ?: __('common.not_available') }}</div></div>
-    </div></section><aside><section class="cardx card-pad"><div class="card-title">{{ __('common.status') }}</div><div style="margin-top:12px"><span class="badge {{ $financialTransaction->status === \App\Enums\FinancialTransactionStatus::Confirmed ? 'badge-green' : 'badge-amber' }}">{{ $financialTransaction->status->label() }}</span></div></section>@if($canManage && $financialTransaction->status === \App\Enums\FinancialTransactionStatus::Draft)<section class="cardx card-pad action-stack" style="margin-top:16px"><form method="POST" action="{{ route($mode.'.destroy', $financialTransaction) }}" data-confirm="{{ __('common.confirm_delete') }}">@csrf @method('DELETE')<button class="btnx btn-dangerx w-100">{{ __('common.delete') }}</button></form></section>@endif</aside></div>
+    </div></section>
+    <aside>
+        <section class="cardx card-pad">
+            <div class="card-title">{{ __('common.status') }}</div>
+            <div style="margin-top:12px"><span class="badge {{ $financialTransaction->status->badgeClass() }}">{{ $financialTransaction->status->label() }}</span></div>
+        </section>
+        @if($canManage && $financialTransaction->status->awaitsConfirmation())
+            @php($historicalDraft = $financialTransaction->status === \App\Enums\FinancialTransactionStatus::Draft)
+            <section class="cardx card-pad action-stack" style="margin-top:16px">
+                <form method="POST" action="{{ route($mode.'.destroy', $financialTransaction) }}" data-confirm="{{ __($historicalDraft ? 'common.confirm_delete' : 'common.withdraw_question') }}">
+                    @csrf @method('DELETE')
+                    <button class="btnx btn-dangerx w-100">{{ __($historicalDraft ? 'common.delete' : 'common.withdraw_submission') }}</button>
+                </form>
+            </section>
+        @endif
+    </aside></div>
 @endsection

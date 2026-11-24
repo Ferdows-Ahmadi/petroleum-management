@@ -23,6 +23,7 @@ use App\Http\Controllers\PartnerFinanceController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\RelatedDealController;
+use App\Http\Controllers\AccountReportController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\UserController;
@@ -150,6 +151,7 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function (): void {
         UserRole::PurchaseSalesOfficer->value,
     ]))->group(function (): void {
         Route::post('/inline/parties', [InlinePartyController::class, 'store'])->name('inline-parties.store');
+        Route::get('/reports/accounts', [AccountReportController::class, 'partners'])->name('reports.accounts');
         Route::get('/accounts', [OfficeAccountController::class, 'index'])->name('office.accounts');
         Route::get('/purchases/{purchase}/ticket', [PurchaseController::class, 'ticket'])->name('purchases.ticket');
         Route::get('/partner-statements', [PartnerFinanceController::class, 'index'])->name('partners.statements');
@@ -201,6 +203,7 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function (): void {
         UserRole::PurchaseSalesOfficer->value,
     ]))->group(function (): void {
         Route::post('/deals', [DealController::class, 'store'])->name('deals.store')->middleware('once');
+        Route::post('/deals/{deal}/notes', [DealController::class, 'addNote'])->name('deals.notes.store')->middleware('once');
         Route::get('/deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
         Route::put('/deals/{deal}', [DealController::class, 'update'])->name('deals.update');
         Route::post('/deals/{deal}/sources', [DealSettlementController::class, 'storeSource'])->name('deals.sources.store');
@@ -311,6 +314,7 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function (): void {
         Route::get('/capital-transactions', [CapitalTransactionController::class, 'index'])->name('capital-transactions.index');
         Route::get('/capital-transactions/{capitalTransaction}', [CapitalTransactionController::class, 'show'])->name('capital-transactions.show');
 
+        Route::get('/reports/accounts/journal', [AccountReportController::class, 'journal'])->name('reports.accounts.journal');
         Route::get('/reports/expenses', [ReportController::class, 'expenses'])->name('reports.expenses');
         Route::get('/reports/capital', [ReportController::class, 'capital'])->name('reports.capital');
         Route::get('/reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit-loss');
@@ -341,6 +345,7 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function (): void {
         UserRole::WarehouseOfficer->value,
     ]))->group(function (): void {
         Route::get('/reports/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
+        Route::get('/reports/inventory', [ReportController::class, 'inventory'])->name('reports.inventory');
         Route::get('/reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
     });
 
@@ -366,7 +371,7 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function (): void {
         Route::put('/capital-partners/{capitalPartner}', [CapitalPartnerController::class, 'update'])->name('capital-partners.update');
         Route::delete('/capital-partners/{capitalPartner}', [CapitalPartnerController::class, 'destroy'])->name('capital-partners.destroy');
         Route::get('/capital-transactions/create', [CapitalTransactionController::class, 'create'])->name('capital-transactions.create');
-        Route::post('/capital-transactions', [CapitalTransactionController::class, 'store'])->name('capital-transactions.store');
+        Route::post('/capital-transactions', [CapitalTransactionController::class, 'store'])->name('capital-transactions.store')->middleware('once');
         Route::get('/capital-transactions/{capitalTransaction}/edit', [CapitalTransactionController::class, 'edit'])->name('capital-transactions.edit');
         Route::put('/capital-transactions/{capitalTransaction}', [CapitalTransactionController::class, 'update'])->name('capital-transactions.update');
         Route::delete('/capital-transactions/{capitalTransaction}', [CapitalTransactionController::class, 'destroy'])->name('capital-transactions.destroy');

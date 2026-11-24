@@ -96,7 +96,7 @@ class PhaseFiveUxWorkflowTest extends TestCase
             ->assertSee('value="'.$product->id.'" selected', false)
             ->assertSee(__('deals.weighing'))
             ->assertSee('<details class="cardx card-pad deal-weighing-card"', false)
-            ->assertSee(__('deals.save_draft'));
+            ->assertDontSee('value="draft"', false);
     }
 
     public function test_accounts_filters_and_consolidated_workspaces_are_visible_without_finance_navigation(): void

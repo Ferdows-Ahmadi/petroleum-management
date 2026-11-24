@@ -23,10 +23,9 @@
                     <summary class="btnx btn-primaryx"><i class="bi bi-arrow-down-up"></i>دریافت / پرداخت</summary>
                     <form method="POST" action="{{ route('money-movements.store') }}">
                         @csrf
-                        <input type="hidden" name="confirm_now" value="1">
                         <input type="hidden" name="return_to" value="journal">
                         @include('money-movements._fields', ['moneyMovement' => null, 'counterparty' => null, 'restoreMovementInput' => $moneyInvalid])
-                        <div class="form-actions"><button class="btnx btn-primaryx">ثبت و تأیید</button></div>
+                        <div class="form-actions"><button class="btnx btn-primaryx" type="submit" name="confirm_now" value="1">ثبت و تأیید</button></div>
                     </form>
                 </details>
                 <details id="expense-entry" @if(request('entry') === 'expense' || $expenseInvalid) open @endif>
@@ -60,7 +59,7 @@
                             <div class="field"><label for="expense_reference">{{ __('common.reference') }}</label><input id="expense_reference" class="control" name="reference" value="{{ $expenseInput['reference'] ?? '' }}">@if($expenseInvalid)<x-field-error name="reference" />@endif</div>
                             <div class="field"><label for="expense_description">{{ __('finance.description') }}</label><input id="expense_description" class="control" name="description" value="{{ $expenseInput['description'] ?? '' }}">@if($expenseInvalid)<x-field-error name="description" />@endif</div>
                         </div>
-                        <div class="form-actions"><button class="btnx btn-primaryx">ثبت و تأیید</button></div>
+                        <div class="form-actions"><button class="btnx btn-primaryx" type="submit" name="confirm_now" value="1">ثبت و تأیید</button></div>
                     </form>
                 </details>
             </div>

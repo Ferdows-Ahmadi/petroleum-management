@@ -17,7 +17,7 @@
                     <th scope="col">بیلانس جاری <span class="ledger-unit">USD</span></th>
                     @if($showTradeDetails)
                         <th scope="col">مقدار <span class="ledger-unit">kg</span></th>
-                        <th scope="col">نرخ فی تن <span class="ledger-unit">USD</span></th>
+                        <th scope="col">نرخ هر تُن <span class="ledger-unit">USD</span></th>
                     @endif
                 </tr>
             </thead>

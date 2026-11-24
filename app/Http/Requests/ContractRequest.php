@@ -6,10 +6,9 @@ use App\Enums\ContractStatus;
 use App\Enums\ContractType;
 use App\Enums\Currency;
 use App\Http\Requests\Concerns\ConvertsJalaliDates;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class ContractRequest extends FormRequest
+class ContractRequest extends OperationalEntryRequest
 {
     use ConvertsJalaliDates;
 
@@ -36,7 +35,7 @@ class ContractRequest extends FormRequest
             'agreed_amount' => ['nullable', 'numeric', 'gt:0', 'regex:/^(?:0|[1-9]\d{0,15})(?:\.\d{1,2})?$/'],
             'currency' => ['nullable', 'required_with:agreed_amount', Rule::enum(Currency::class)],
             'terms' => ['required', 'string', 'max:10000'],
-            'status' => ['required', Rule::enum(ContractStatus::class)],
+            'status' => ['required', Rule::enum(ContractStatus::class)->only(ContractStatus::registrationChoices($this->route('contract')?->status))],
         ];
     }
 }

@@ -144,7 +144,7 @@ class WeighingRecordController extends Controller
     {
         return SaleItem::query()
             ->whereDoesntHave('weighingRecord')
-            ->whereHas('sale', fn (Builder $query) => $query->where('status', TransactionStatus::Draft->value))
+            ->whereHas('sale', fn (Builder $query) => $query->whereIn('status', [TransactionStatus::Draft->value, TransactionStatus::AwaitingWeighing->value]))
             ->with(['sale.customer', 'product', 'warehouse'])
             ->orderBy('id')
             ->get();

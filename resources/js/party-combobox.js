@@ -116,6 +116,7 @@ export function initializePartyCombobox(box) {
         status.textContent = 'در حال ثبت…';
         status.className = 'combobox-status';
         close();
+        let feedback = 'ارتباط با سیستم برقرار نشد. دوباره کوشش کنید.';
         try {
             const response = await fetch(box.dataset.endpoint, {
                 method: 'POST',
@@ -123,7 +124,10 @@ export function initializePartyCombobox(box) {
                 body: JSON.stringify({ ...payload, role }),
             });
             const body = await response.json();
-            if (!response.ok) throw new Error(Object.values(body.errors || {}).flat()[0] || 'ثبت شخص ممکن نشد.');
+            if (!response.ok) {
+                feedback = response.status === 422 ? (Object.values(body.errors || {}).flat()[0] || 'معلومات شخص را بررسی کنید.') : 'ثبت شخص ممکن نشد.';
+                throw new Error();
+            }
             if (option === create) document.dispatchEvent(new CustomEvent('party-added', { detail: body }));
             if (version !== revision || role !== box.dataset.role || query.disabled || query.value !== originalQuery || idInput.value) return;
             idInput.value = body.id;
@@ -131,9 +135,9 @@ export function initializePartyCombobox(box) {
             status.textContent = 'انتخاب شد' + (body.reference ? ' · ' + body.reference : '');
             status.className = 'combobox-status success';
             close();
-        } catch (error) {
+        } catch {
             if (version !== revision || role !== box.dataset.role || query.disabled) return;
-            status.textContent = error.message;
+            status.textContent = feedback;
             status.className = 'combobox-status error';
         } finally {
             if (version === revision) pending = false;

@@ -13,7 +13,7 @@
             <div class="field span-2"><label for="location">{{ __('warehouses.location') }}</label><input class="control" id="location" name="location" value="{{ old('location', $warehouse->location) }}" placeholder="{{ __('warehouses.location_placeholder') }}"><x-field-error name="location" /></div>
             <div class="field span-2"><label for="description">{{ __('warehouses.description') }}</label><textarea class="control textarea" id="description" name="description" placeholder="{{ __('warehouses.description_placeholder') }}">{{ old('description', $warehouse->description) }}</textarea><x-field-error name="description" /></div>
         </div>
-        <div class="notice subtle-notice"><i class="bi bi-calculator"></i><div><strong>{{ __('warehouses.stock') }}</strong>{{ __('warehouses.stock_rule') }}</div></div>
+        <div class="notice subtle-notice"><i class="bi bi-calculator"></i><div><strong>{{ __('warehouses.stock') }}</strong> <span>{{ __('warehouses.stock_rule') }}</span></div></div>
         <div class="form-actions"><button class="btnx btn-primaryx" type="submit"><i class="bi bi-check2"></i>{{ __('common.save') }}</button><a class="btnx btn-lightx" href="{{ route('warehouses.index') }}">{{ __('common.cancel') }}</a></div>
     </form>
 @endsection

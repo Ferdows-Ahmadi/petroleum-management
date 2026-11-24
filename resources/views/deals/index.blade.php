@@ -134,7 +134,7 @@
                                 @if($canViewPayments)
                                     <td>{{ __('finance.settlement_states.'.$paymentStates[$deal->id]) }}</td>
                                 @endif
-                                <td><a class="table-link" href="{{ route('deals.show', $deal) }}" aria-label="{{ __('common.view') }} {{ $deal->reference_code }}">{{ __('common.view') }}</a></td>
+                                <td><a class="table-link" href="{{ route('deals.show', $deal) }}" aria-label="{{ __('common.view') }} {{ $deal->reference_code }}">{{ __('common.view') }}</a> · <a class="table-link" href="{{ route('deals.show', $deal) }}#deal-notes" aria-label="یادداشت‌های {{ $deal->reference_code }}">یادداشت‌ها</a></td>
                             </tr>
                         @endforeach
                     </tbody>

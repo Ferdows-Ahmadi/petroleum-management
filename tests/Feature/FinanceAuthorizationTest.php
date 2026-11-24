@@ -63,6 +63,7 @@ class FinanceAuthorizationTest extends TestCase
         $account = $this->financeAccount($user, Currency::Usd);
         foreach ([FinancialTransactionType::PaymentReceived, FinancialTransactionType::PaymentPaid] as $type) {
             $this->actingAs($user)->post(route('money-movements.store'), [
+                'confirm_now' => 1,
                 'movement_type' => $type === FinancialTransactionType::PaymentReceived ? 'CUSTOMER_RECEIPT' : 'SUPPLIER_PAYMENT',
                 'financial_account_id' => $account->id,
                 'movement_date' => '1405/05/17',

@@ -17,6 +17,40 @@ php artisan contacts:import $source --json | Set-Content -Encoding utf8 '..\priv
 
 Each group includes its source line numbers and proposed categories. The private report identifies candidate directory records by ID, name, role and active state. Counts refer to groups of exactly matching spellings, so repeated source rows can produce a single action.
 
+### وارد کردن اشخاص عمومی
+
+وقتی فهرست فقط نام یک شخص را می‌دهد، او را با نقش عمومی `PARTNER` ثبت کنید. برای این حالت، مسئول مجاز گزینهٔ `--include-general` را هم در پیش‌نمایش و هم در اجرای تأییدشده می‌دهد. فرمان معمولی ردیف‌های عمومی را برای بررسی نگه می‌دارد. نام‌های مشابه، مشخصات متضاد، نقش متفاوت یک شخص موجود و اشخاص غیرفعال در هر دو حالت به بررسی نیاز دارند.
+
+در فورم معامله، نام شخص عمومی را در خانهٔ خرید یا فروش جستجو کنید. از فهرست، **همان شخص** را با کدش انتخاب کنید. برنامه نقش مورد نیاز آن خانه را به همان کد می‌افزاید. برای صراف، انتخاب از خانهٔ صراف به صلاحیت مدیر عمومی یا حسابدار نیاز دارد. نقش قبلی و تاریخچهٔ حساب حفظ می‌شود.
+
+In PowerShell, capture reports in a protected folder outside the application. Run the first block after verifying the target and backup. Stop and review the saved preview, comparing every held line and candidate ID with the owner.
+
+```powershell
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+$private = (Resolve-Path '..\private').Path
+$source = (Resolve-Path (Join-Path $private 'contacts.txt')).Path
+$previewText = & php artisan contacts:import $source --include-general --json
+if ($LASTEXITCODE) { throw 'Preview failed.' }
+$previewText | Set-Content -Encoding UTF8 (Join-Path $private 'general-preview.json')
+($previewText -join [Environment]::NewLine | ConvertFrom-Json).counts
+```
+
+After review, read the approved fingerprint from that saved file. Keep the same source bytes, mode and target. Save the applied IDs and a second preview in the same protected folder.
+
+```powershell
+$review = Get-Content -Raw -Encoding UTF8 (Join-Path $private 'general-preview.json') | ConvertFrom-Json
+if ($review.mode -ne 'preview' -or $review.include_general -ne $true) { throw 'Review the general-contact preview.' }
+$approved = Read-Host 'Enter the 64-character fingerprint approved by the owner'
+if ($approved -cne $review.fingerprint) { throw 'Approval does not match the saved preview.' }
+$applied = & php artisan contacts:import $source --include-general "--apply=$approved" --json
+if ($LASTEXITCODE) { throw 'Apply failed. Create and review a fresh preview.' }
+$applied | Set-Content -Encoding UTF8 (Join-Path $private 'general-applied.json')
+$repeat = & php artisan contacts:import $source --include-general --json
+if ($LASTEXITCODE) { throw 'Reconciliation failed.' }
+$repeat | Set-Content -Encoding UTF8 (Join-Path $private 'general-repeat.json')
+if (($repeat -join [Environment]::NewLine | ConvertFrom-Json).counts.create -ne 0) { throw 'Investigate remaining proposed creates.' }
+```
+
 | Action | What to review |
 |---|---|
 | CREATE | Check spelling and role. The importer creates one contact with that source spelling and role. |
@@ -25,12 +59,35 @@ Each group includes its source line numbers and proposed categories. The private
 
 ## Resolve held groups
 
-- For `uncategorized`, verify the role with the person responsible for the list. If confirmed, put the correct category in a **private working copy**. Keep unverified rows in the original for later review.
+- For `uncategorized`, an owner who wants a general directory entry can authorize `--include-general` without assigning a commercial role. When a specific commercial role is confirmed, put that category in a **private working copy** and obtain a new preview.
 - For `conflicting_source_roles` or `existing_role_conflict`, check whether the name describes one person in several roles or two different people. For a verified multi-role person, use the authorized partner editor to maintain the roles on that person's existing record. Retain all valid roles. Record the partner ID and reviewed source lines in the private review notes.
 - For `possible_source_alias` or `possible_existing_alias`, compare the listed names and supporting details. The comparison considers Arabic/Dari letter forms, diacritics, spacing, reordered words, exchange titles, and certain small spelling differences. It is a prompt for human review. If an alias is verified, use the established spelling and role in the working copy. If similar names belong to distinct people, an authorized user can create or identify each separately through the partner screens and record the distinct IDs.
 - For `multiple_exact_matches` or `inactive_or_deleted`, investigate by ID and consult the record owner. Keep the lines held until the identity and active status are settled. Leave historical entries and relationships attached to their original IDs.
 
 Keep a private line-to-ID decision log for cases resolved manually. A fresh import of the original list will continue to flag ambiguous names. Preview the working copy again after edits. To approve only some otherwise eligible groups, use a reviewed working copy that retains every unresolved look-alike and conflict for those groups, then check the new preview carefully. Removing one side of a conflict can change the proposed action.
+
+### Apply an owner's decisions to the original source
+
+An operator can save the owner's confirmed identities in a private UTF-8 JSON file. Each case lists every original line for the reviewed spellings, including repeated entries. The source hash binds these decisions to the exact original bytes. A `same` decision chooses the display spelling from `canonical_line` and a role present in the source case. A `distinct` decision keeps each spelling and category separately. Distinguish identical spellings belonging to different people through the contact editor and record their distinct IDs privately.
+
+```powershell
+$decisions = Join-Path $private 'decisions.json'
+# Example line numbers stand for the identities the owner actually reviewed.
+$approvedIdentities = [ordered]@{
+    source_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $source).Hash.ToLowerInvariant()
+    decisions = @(
+        @{lines=@(2,3);identity='same';canonical_line=2;role='SUPPLIER'},
+        @{lines=@(4,5);identity='distinct'}
+    )
+}
+[IO.File]::WriteAllText($decisions, ($approvedIdentities | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
+$options = @('--include-general', "--decisions=$decisions", '--json')
+$previewText = & php artisan contacts:import $source @options
+if ($LASTEXITCODE) { throw 'Decision preview failed.' }
+$previewText | Set-Content -Encoding UTF8 (Join-Path $private 'decision-preview.json')
+```
+
+Review the proposed groups and all entries under `source_entries`. After backup and authorization, pass the same `@options` and the newly reviewed fingerprint to the apply command. Save the report and preview again with the same options. Each original source line in a created or reused group shares that group's returned partner ID. Keep a record of every original spelling. Possible matches with other directory records, inactive contacts and role conflicts still go to review. The importer never moves transactions between existing contacts.
 
 ## Apply and reconcile
 

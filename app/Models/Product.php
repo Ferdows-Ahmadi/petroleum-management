@@ -22,10 +22,17 @@ class Product extends Model
 
     public function isQuickFuel(): bool
     {
-        $name = str_replace('ي', 'ی', mb_strtolower(trim($this->name)));
-
         return in_array(strtoupper(trim((string) $this->code)), ['DSL', 'PTR'], true)
-            || in_array($name, ['دیزل', 'پترول', 'پطرول', 'diesel', 'petrol', 'gasoline'], true);
+            || self::fuelCodeForName($this->name) !== null;
+    }
+
+    public static function fuelCodeForName(string $name): ?string
+    {
+        return match (str_replace('ي', 'ی', mb_strtolower(trim($name)))) {
+            'دیزل', 'دیزل تیل', 'diesel' => 'DSL',
+            'پترول', 'پطرول', 'petrol', 'gasoline' => 'PTR',
+            default => null,
+        };
     }
 
     /** @return HasMany<InventoryMovement, $this> */

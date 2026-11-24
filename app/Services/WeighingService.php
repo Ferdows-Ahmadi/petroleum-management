@@ -94,6 +94,18 @@ class WeighingService
                 'amount' => $amount,
             ]);
 
+            if ($item instanceof SaleItem) {
+                // The parent sale is locked by lockRecordParent. A multi-line sale
+                // is ready for approval only after the last ticket is finalized.
+                Sale::query()->whereKey($item->sale_id)
+                    ->where('status', TransactionStatus::AwaitingWeighing->value)
+                    ->whereDoesntHave('items', fn ($lines) => $lines->whereDoesntHave(
+                        'weighingRecord',
+                        fn ($tickets) => $tickets->where('status', WeighingStatus::Finalized->value),
+                    ))
+                    ->update(['status' => TransactionStatus::PendingApproval]);
+            }
+
             return true;
         });
     }
@@ -181,9 +193,9 @@ class WeighingService
         return $this->calculateNet($record->first_weight_kg, $record->second_weight_kg);
     }
 
-    private function ensureSaleDraft(Sale $sale): void
+    private function ensureSaleAllowsWeighing(Sale $sale): void
     {
-        if ($sale->status !== TransactionStatus::Draft) {
+        if (! $sale->status->allowsWeighing()) {
             throw ValidationException::withMessages(['sale_item_id' => __('weighings.errors.sale_not_draft')]);
         }
     }
@@ -214,7 +226,7 @@ class WeighingService
 
         $saleId = SaleItem::query()->whereKey($data['sale_item_id'])->value('sale_id');
         $sale = Sale::query()->lockForUpdate()->findOrFail($saleId);
-        $this->ensureSaleDraft($sale);
+        $this->ensureSaleAllowsWeighing($sale);
 
         return [SaleItem::query()->where('sale_id', $sale->id)->lockForUpdate()->findOrFail($data['sale_item_id']), 'sale_item_id'];
     }
@@ -231,7 +243,7 @@ class WeighingService
 
         $saleId = SaleItem::query()->whereKey($record->sale_item_id)->value('sale_id');
         $sale = Sale::query()->lockForUpdate()->findOrFail($saleId);
-        $this->ensureSaleDraft($sale);
+        $this->ensureSaleAllowsWeighing($sale);
 
         return SaleItem::query()->where('sale_id', $sale->id)->lockForUpdate()->findOrFail($record->sale_item_id);
     }

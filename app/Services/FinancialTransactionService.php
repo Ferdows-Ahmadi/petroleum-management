@@ -25,7 +25,7 @@ class FinancialTransactionService
             return FinancialTransaction::create([
                 ...$normalized,
                 'transaction_type' => $type,
-                'status' => FinancialTransactionStatus::Draft,
+                'status' => FinancialTransactionStatus::PendingApproval,
                 'created_by' => $userId,
             ]);
         });
@@ -54,6 +54,9 @@ class FinancialTransactionService
             if ($locked->status === FinancialTransactionStatus::Confirmed) {
                 return false;
             }
+            if (! $locked->status->awaitsConfirmation()) {
+                throw ValidationException::withMessages(['status' => __('common.withdrawn_approval')]);
+            }
 
             $this->ensureAccountCompatible($account, $locked->currency);
             $amountUsd = $this->conversion->toUsd($locked->amount, $locked->currency, $locked->exchange_rate_to_usd);
@@ -72,6 +75,15 @@ class FinancialTransactionService
     {
         DB::transaction(function () use ($transaction): void {
             $locked = FinancialTransaction::query()->lockForUpdate()->findOrFail($transaction->id);
+            if ($locked->status === FinancialTransactionStatus::PendingApproval) {
+                $locked->update(['status' => FinancialTransactionStatus::Cancelled]);
+
+                return;
+            }
+            if ($locked->status === FinancialTransactionStatus::Cancelled) {
+                return;
+            }
+
             $this->ensureDraft($locked);
             $locked->delete();
         });
@@ -90,7 +102,7 @@ class FinancialTransactionService
         }
 
         return [
-            ...Arr::except($data, ['status', 'amount_usd', 'transaction_type', 'confirmed_by', 'confirmed_at']),
+            ...Arr::except($data, ['confirm_now', 'status', 'amount_usd', 'transaction_type', 'confirmed_by', 'confirmed_at']),
             'business_partner_id' => $type === FinancialTransactionType::Expense ? null : $data['business_partner_id'],
             'expense_category' => $type === FinancialTransactionType::Expense ? $data['expense_category'] : null,
             'exchange_rate_to_usd' => $currency === Currency::Afn ? $data['exchange_rate_to_usd'] : null,

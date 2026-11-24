@@ -110,7 +110,7 @@ class FinancialTransactionController extends Controller
         $this->ensureRouteMode($financialTransaction, $request->routeIs('expenses.*') ? 'expenses' : 'payments');
         $service->delete($financialTransaction);
 
-        return redirect()->route($mode.'.index')->with('success', __('finance.transaction_deleted'));
+        return redirect()->route($mode.'.index')->with('success', __($financialTransaction->status === FinancialTransactionStatus::Draft ? 'finance.transaction_deleted' : 'common.submission_withdrawn'));
     }
 
     private function edit(FinancialTransaction $transaction, string $mode): View|RedirectResponse

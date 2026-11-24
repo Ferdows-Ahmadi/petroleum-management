@@ -12,7 +12,7 @@ use App\Models\InventoryMovement;
 use App\Services\CapitalTransactionService;
 use App\Services\InventoryValuationService;
 use App\Services\TradeConfirmationService;
-use App\Services\TradeDraftService;
+use App\Services\TradeEntryService;
 use App\Services\WeighingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesFinanceFixtures;
@@ -229,7 +229,7 @@ class ManagementReportTest extends TestCase
         $this->purchase($user, $supplier, $product, $warehouse, '2026-08-01', '1000', '1000', 'TOTAL-CONFIRMED');
         $draftPayload = $this->purchasePayload($supplier, $product, $warehouse, '900', '1000');
         $draftPayload['reference_number'] = 'TOTAL-DRAFT';
-        app(TradeDraftService::class)->createPurchase($draftPayload, $user->id);
+        app(TradeEntryService::class)->createPurchase($draftPayload, $user->id)->update(['status' => 'DRAFT']);
 
         $this->actingAs($user)->get(route('reports.purchases'))
             ->assertOk()
@@ -254,7 +254,7 @@ class ManagementReportTest extends TestCase
         $this->sale($user, $customer, $product, $warehouse, '2026-08-02', '500', '2000', 'WG-TOTAL-S');
         $draftPayload = $this->salePayload($customer, $product, $warehouse, '300', '2000');
         $draftPayload['reference_number'] = 'WG-DRAFT-S';
-        $draftSale = app(TradeDraftService::class)->createSale($draftPayload, $user->id);
+        $draftSale = app(TradeEntryService::class)->createSale($draftPayload, $user->id);
         app(WeighingService::class)->create([
             'sale_item_id' => $draftSale->items()->firstOrFail()->id,
             'ticket_number' => 'WG-DRAFT',
@@ -300,7 +300,7 @@ class ManagementReportTest extends TestCase
 
         $this->actingAs($user)->get(route('reports.capital', ['date_from' => '1405/05/19', 'date_to' => '1405/05/19']))
             ->assertOk()
-            ->assertViewHas('rows', fn ($rows) => $rows->first()['balance'] === '80.00')
+            ->assertViewHas('rows', fn ($rows) => $rows->first()['balance'] === '80.00' && $rows->first()['closing'] === '120.00')
             ->assertSee('value="1405/05/19"', false)
             ->assertDontSee('value="2026-08-10"', false);
     }
@@ -331,7 +331,7 @@ class ManagementReportTest extends TestCase
         app(CapitalTransactionService::class)->confirm($capital, $user->id);
 
         $this->actingAs($user)->get(route('reports.weighings'))->assertOk()->assertViewHas('totalNet', '250.000');
-        $this->actingAs($user)->get(route('reports.capital'))->assertOk()->assertViewHas('rows', fn ($rows) => $rows->first()['balance'] === '80.00');
+        $this->actingAs($user)->get(route('reports.capital'))->assertOk()->assertViewHas('rows', fn ($rows) => $rows->first()['balance'] === '80.00' && $rows->first()['closing'] === '80.00');
     }
 
     /** @return array{mixed, mixed, mixed, mixed, mixed} */
@@ -345,7 +345,7 @@ class ManagementReportTest extends TestCase
         $payload = $this->purchasePayload($supplier, $product, $warehouse, $quantity, $rate);
         $payload['purchase_date'] = $date;
         $payload['reference_number'] = $reference;
-        $purchase = app(TradeDraftService::class)->createPurchase($payload, $user->id);
+        $purchase = app(TradeEntryService::class)->createPurchase($payload, $user->id);
         app(TradeConfirmationService::class)->confirmPurchase($purchase, $user->id);
     }
 
@@ -354,7 +354,7 @@ class ManagementReportTest extends TestCase
         $payload = $this->salePayload($customer, $product, $warehouse, $quantity, $rate);
         $payload['sale_date'] = $date;
         $payload['reference_number'] = $reference;
-        $sale = app(TradeDraftService::class)->createSale($payload, $user->id);
+        $sale = app(TradeEntryService::class)->createSale($payload, $user->id);
         $this->finalizeSaleItemWeighing($sale->items->first(), $user, bcadd($quantity, '1000', 3));
         app(TradeConfirmationService::class)->confirmSale($sale, $user->id);
     }

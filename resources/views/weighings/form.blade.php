@@ -50,6 +50,6 @@
                 </section>
             </aside>
         </div>
-        <div class="form-actions"><button class="btnx btn-primaryx" type="submit" @disabled(!$weighingRecord->exists && $saleItems->isEmpty())><i class="bi bi-check2"></i>{{ __('weighings.save_draft') }}</button><a class="btnx btn-lightx" href="{{ $weighingRecord->exists ? route('weighings.show', $weighingRecord) : route('weighings.index') }}">{{ __('common.cancel') }}</a></div>
+        <div class="form-actions"><button class="btnx btn-primaryx" type="submit" @disabled(!$weighingRecord->exists && $saleItems->isEmpty())><i class="bi bi-check2"></i>ثبت وزن</button><a class="btnx btn-lightx" href="{{ $weighingRecord->exists ? route('weighings.show', $weighingRecord) : route('weighings.index') }}">{{ __('common.cancel') }}</a></div>
     </form>
 @endsection

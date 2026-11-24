@@ -27,14 +27,14 @@ return [
     'partner_created' => 'شریک سرمایه ایجاد شد.',
     'partner_updated' => 'شریک سرمایه به‌روزرسانی شد.',
     'partner_deleted' => 'شریک سرمایه حذف شد.',
-    'transaction_created' => 'معامله سرمایه به حالت پیش‌نویس ایجاد شد.',
+    'transaction_created' => 'معامله سرمایه برای تأیید ثبت شد.',
     'transaction_updated' => 'معامله سرمایه به‌روزرسانی شد.',
     'transaction_confirmed' => 'معامله سرمایه تأیید شد.',
     'already_confirmed' => 'این معامله قبلاً تأیید شده است.',
     'transaction_deleted' => 'پیش‌نویس معامله حذف شد.',
     'errors' => [
         'partner_in_use' => 'شریک دارای معامله است و حذف نمی‌شود.',
-        'confirmed_immutable' => 'معامله تأییدشده قابل تغییر نیست.',
+        'confirmed_immutable' => 'این معاملهٔ سرمایه قابل ویرایش یا حذف نیست.',
         'account_required' => 'برای این معامله یک حساب مالی دالری لازم است.',
         'account_not_allowed' => 'برای این معامله غیرنقدی حساب مالی انتخاب نکنید.',
         'usd_account_required' => 'حساب مالی باید فعال و دالری باشد.',
@@ -48,5 +48,5 @@ return [
         'ADJUSTMENT' => 'تعدیل',
     ],
     'adjustment_directions' => ['INCREASE' => 'افزایش', 'DECREASE' => 'کاهش'],
-    'status' => ['DRAFT' => 'پیش‌نویس', 'CONFIRMED' => 'تأییدشده'],
+    'status' => ['DRAFT' => 'پیش‌نویس', 'PENDING_APPROVAL' => 'در انتظار تأیید', 'CONFIRMED' => 'تأییدشده', 'CANCELLED' => 'پس‌گرفته‌شده'],
 ];

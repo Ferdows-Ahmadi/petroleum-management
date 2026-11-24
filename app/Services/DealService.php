@@ -12,6 +12,7 @@ use App\Enums\WeighingStatus;
 use App\Models\Deal;
 use App\Models\DealDestination;
 use App\Models\DealSource;
+use App\Models\WeighingRecord;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -40,7 +41,7 @@ class DealService
                 'requested_delivery_date' => $data['requested_delivery_date'] ?? null,
                 'requested_quantity_kg' => $data['requested_quantity_kg'] ?? null,
                 'product_id' => $data['product_id'] ?? null,
-                'status' => DealStatus::Draft,
+                'status' => DealStatus::InProgress,
                 'notes' => $data['notes'] ?? null,
                 'created_by' => $userId,
             ]);
@@ -66,15 +67,35 @@ class DealService
                 ], $userId);
             }
 
-            if ($data['submit_action'] === 'complete') {
-                if ($weighing) {
-                    $this->weighings->finalize($weighing, $userId);
-                }
-                $this->completeLocked($deal, $userId);
-            }
+            $this->finishRegistration($deal, $data, $weighing, $userId);
 
             return $deal->refresh()->load(['product', 'sources.supplier', 'destinations.customer']);
         });
+    }
+
+    private function finishRegistration(Deal $deal, array $data, ?WeighingRecord $weight, int $userId): void
+    {
+        if (! in_array($data['submit_action'] ?? null, ['register', 'complete'], true)) {
+            throw ValidationException::withMessages(['submit_action' => __('deals.errors.registration_action')]);
+        }
+        $waitingForWeight = $weight && $weight->weighing_mode === WeighingMode::TwoStage && $weight->second_weight_kg === null;
+        if ($weight && ! $waitingForWeight) {
+            $this->weighings->finalize($weight, $userId);
+        }
+        if (! empty($data['partial_delivery'])) {
+            $delivered = $this->destinationQuantity($data);
+            if ($data['submit_action'] !== 'register' || $delivered === null || bccomp($delivered, '0', 3) <= 0
+                || bccomp((string) ($data['source_quantity_kg'] ?? '0'), $delivered, 3) <= 0) {
+                throw ValidationException::withMessages(['final_quantity_kg' => __('deals.errors.partial_quantity')]);
+            }
+        }
+        if ($data['submit_action'] === 'register' && ($waitingForWeight || ! empty($data['partial_delivery']))) {
+            $deal->update(['status' => DealStatus::InProgress]);
+
+            return;
+        }
+
+        $this->completeLocked($deal, $userId);
     }
 
     public function complete(Deal $deal, int $userId): Deal
@@ -115,12 +136,7 @@ class DealService
                 $destination->update(['final_quantity_kg' => null, 'amount' => null]);
             }
             $locked->allocations()->delete();
-            if ($data['submit_action'] === 'complete') {
-                if ($hasWeight && $record) {
-                    $this->weighings->finalize($record, $userId);
-                }
-                $this->completeLocked($locked, $userId);
-            }
+            $this->finishRegistration($locked, $data, $hasWeight ? $record : null, $userId);
 
             return $locked->refresh();
         });

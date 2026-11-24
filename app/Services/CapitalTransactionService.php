@@ -21,7 +21,7 @@ class CapitalTransactionService
 
             return CapitalTransaction::create([
                 ...$this->normalize($data),
-                'status' => CapitalTransactionStatus::Draft,
+                'status' => CapitalTransactionStatus::PendingApproval,
                 'created_by' => $userId,
             ]);
         });
@@ -51,6 +51,9 @@ class CapitalTransactionService
             if ($locked->status === CapitalTransactionStatus::Confirmed) {
                 return false;
             }
+            if (! $locked->status->awaitsConfirmation()) {
+                throw ValidationException::withMessages(['status' => __('common.withdrawn_approval')]);
+            }
 
             $this->validateAccountFor($locked->transaction_type, $locked->financial_account_id);
             $locked->update([
@@ -67,6 +70,15 @@ class CapitalTransactionService
     {
         DB::transaction(function () use ($transaction): void {
             $locked = CapitalTransaction::query()->lockForUpdate()->findOrFail($transaction->id);
+            if ($locked->status === CapitalTransactionStatus::PendingApproval) {
+                $locked->update(['status' => CapitalTransactionStatus::Cancelled]);
+
+                return;
+            }
+            if ($locked->status === CapitalTransactionStatus::Cancelled) {
+                return;
+            }
+
             $this->ensureDraft($locked);
             $locked->delete();
         });

@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\User;
 use Dom\HTMLDocument;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Fixtures\HistoricalDeal;
 use Tests\TestCase;
 
 class DailyDealEntryTest extends TestCase
@@ -33,8 +34,8 @@ class DailyDealEntryTest extends TestCase
         $this->assertEqualsCanonicalizing([$diesel->id, $petrol->id], $ids);
         $this->assertSame((string) $other->id, $form->querySelector('#product_id option[selected]')->getAttribute('value'));
         $this->assertNull($form->querySelector("#product_id option[value='{$inactive->id}']"));
-        $this->assertSame('complete', $form->querySelector('button[type=submit]')->getAttribute('value'));
-        $this->assertNotNull($form->querySelector('button[value=draft][formnovalidate]'));
+        $this->assertSame('register', $form->querySelector('button[type=submit]')->getAttribute('value'));
+        $this->assertNull($form->querySelector('button[value=draft]'));
         $this->assertNotNull($form->querySelector('textarea[name=notes]'));
         $this->assertNull($form->querySelector('details textarea[name=notes]'));
     }
@@ -49,8 +50,9 @@ class DailyDealEntryTest extends TestCase
             ->assertSessionHasErrors('source_quantity_kg')->assertSessionHasInput('notes', $notes);
         $this->assertDatabaseCount('deals', 0);
         $this->get(route('deals.index'))->assertOk()->assertSee($notes);
-        $this->post(route('deals.store'), $data + ['submit_action' => 'draft'])->assertSessionHasNoErrors();
-        $draft = Deal::sole();
+        $this->post(route('deals.store'), $data + ['submit_action' => 'draft'])->assertSessionHasErrors('submit_action');
+        $this->assertDatabaseEmpty('deals');
+        $draft = HistoricalDeal::draft(array_replace($data, ['deal_date' => '2026-08-30']), $user->id);
         $this->assertSame(DealStatus::Draft, $draft->status);
         $this->assertSame($notes, $draft->notes);
         $html = $this->get(route('deals.edit', $draft))->assertOk()->getContent();

@@ -32,6 +32,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\FIRST_SETUP.ps1
 ~~~powershell
 php artisan key:generate
 php artisan migrate --force
+php artisan app:initialize-products
 php artisan app:create-manager --name="مدیر عمومی"
 php artisan app:check-system
 powershell -NoProfile -ExecutionPolicy Bypass -File .\START_SYSTEM.ps1

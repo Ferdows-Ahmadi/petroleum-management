@@ -51,7 +51,7 @@ class MySqlConcurrencyTest extends TestCase
         $customer->roles()->create(['role' => PartnerRole::Customer]);
         $warehouse = Warehouse::factory()->create();
         $service = app(DealService::class);
-        $data = ['deal_date' => now()->toDateString(), 'product_id' => $product->id, 'submit_action' => 'draft'];
+        $data = ['deal_date' => now()->toDateString(), 'product_id' => $product->id, 'submit_action' => 'register'];
 
         $name = 'Concurrent audit '.Str::uuid();
         $parties = $this->workers('party', ['name' => $name]);
@@ -59,23 +59,26 @@ class MySqlConcurrencyTest extends TestCase
         $this->assertSame($parties[0]['party'], $parties[1]['party']);
         $this->assertSame(1, BusinessPartner::where('name', $name)->count());
 
-        $replay = $this->workers('replay', ['user' => $user->id, 'key' => (string) Str::uuid(), 'data' => $data]);
+        $replay = $this->workers('replay', ['user' => $user->id, 'key' => (string) Str::uuid(), 'data' => $data + [
+            'supplier_id' => $supplier->id, 'source_quantity_kg' => '1000', 'source_rate_per_ton' => '1100',
+            'customer_id' => $customer->id, 'final_quantity_kg' => '1000', 'destination_rate_per_ton' => '1200',
+        ]]);
         $this->assertTrue($replay[0]['ok'] && $replay[1]['ok']);
         $this->assertSame($replay[0]['location'], $replay[1]['location']);
         $this->assertDatabaseCount('deals', 1);
         $this->assertDatabaseCount('operation_receipts', 1);
 
-        $input = $service->create($data, $user->id);
-        $service->addSource($input, ['source_type' => 'SUPPLIER', 'supplier_id' => $supplier->id, 'quantity_kg' => '1000', 'rate_per_ton' => '1000']);
-        $service->addDestination($input, ['destination_type' => 'STORAGE', 'warehouse_id' => $warehouse->id, 'final_quantity_kg' => '1000']);
-        $service->complete($input, $user->id);
+        $input = $service->create($data + [
+            'supplier_id' => $supplier->id, 'source_quantity_kg' => '1000', 'source_rate_per_ton' => '1000',
+            'destination_type' => 'STORAGE', 'destination_warehouse_id' => $warehouse->id, 'final_quantity_kg' => '1000',
+        ], $user->id);
         app(DealSettlementService::class)->confirm($input, $user->id);
         $outputs = [];
         for ($index = 0; $index < 2; $index++) {
-            $deal = $service->create($data, $user->id);
-            $service->addSource($deal, ['source_type' => 'STORAGE', 'warehouse_id' => $warehouse->id, 'quantity_kg' => '750']);
-            $service->addDestination($deal, ['destination_type' => 'CUSTOMER', 'customer_id' => $customer->id, 'final_quantity_kg' => '750', 'rate_per_ton' => '1100']);
-            $service->complete($deal, $user->id);
+            $deal = $service->create($data + [
+                'source_type' => 'STORAGE', 'source_warehouse_id' => $warehouse->id, 'source_quantity_kg' => '750',
+                'customer_id' => $customer->id, 'final_quantity_kg' => '750', 'destination_rate_per_ton' => '1100',
+            ], $user->id);
             $outputs[] = $deal->id;
         }
         $stock = $this->workers('stock', ['user' => $user->id, 'deals' => $outputs]);

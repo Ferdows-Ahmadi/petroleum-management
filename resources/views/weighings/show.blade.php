@@ -16,7 +16,7 @@
         <a class="btnx btn-lightx" href="{{ route('weighings.index') }}">{{ __('common.back') }}</a>
     </x-page-header>
 
-    @if($weighingRecord->status === \App\Enums\WeighingStatus::Finalized)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('weighings.status.FINALIZED') }}</strong>{{ __('weighings.immutable_notice') }}</div></div>@endif
+    @if($weighingRecord->status === \App\Enums\WeighingStatus::Finalized)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('weighings.status.FINALIZED') }}</strong> <span>{{ __('weighings.immutable_notice') }}</span></div></div>@endif
 
     <div class="detail-grid">
         <div class="stack">

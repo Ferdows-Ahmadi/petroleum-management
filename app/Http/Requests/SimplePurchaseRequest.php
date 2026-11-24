@@ -5,11 +5,10 @@ namespace App\Http\Requests;
 use App\Http\Requests\Concerns\ConvertsJalaliDates;
 use App\Http\Requests\Concerns\ValidatesPetroleumAmounts;
 use App\Models\FinancialAccount;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class SimplePurchaseRequest extends FormRequest
+class SimplePurchaseRequest extends OperationalEntryRequest
 {
     use ConvertsJalaliDates, ValidatesPetroleumAmounts;
 
@@ -63,7 +62,7 @@ class SimplePurchaseRequest extends FormRequest
             'warehouse_id' => ['required', 'integer', Rule::exists('warehouses', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at'))],
             'quantity_kg' => ['required', 'numeric', 'gt:0', 'regex:/^(?:0|[1-9]\d{0,14})(?:\.\d{1,3})?$/'],
             'rate_per_ton' => ['required', 'numeric', 'gte:0', 'regex:/^(?:0|[1-9]\d{0,13})(?:\.\d{1,4})?$/'],
-            'submit_action' => ['required', Rule::in(['draft', 'confirm'])],
+            'submit_action' => ['required', Rule::in(['confirm'])],
             'payment_amount' => ['nullable', 'numeric', 'gt:0', 'regex:/^(?:0|[1-9]\d{0,15})(?:\.\d{1,2})?$/'],
             'financial_account_id' => ['nullable', 'required_with:payment_amount', 'integer', Rule::exists('financial_accounts', 'id')->where('is_active', true)],
             'exchange_rate_to_usd' => ['nullable', 'numeric', 'gt:0', 'regex:/^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/'],

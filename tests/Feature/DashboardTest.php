@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Enums\PartnerRole;
 use App\Enums\UserRole;
 use App\Models\User;
-use App\Services\TradeDraftService;
+use App\Services\TradeEntryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesTradeFixtures;
 use Tests\TestCase;
@@ -34,8 +34,8 @@ class DashboardTest extends TestCase
         $customer = $this->tradePartner([PartnerRole::Customer]);
         $product = $this->tradeProduct('DASH-AUTH');
         $warehouse = $this->tradeWarehouse('ذخیره داشبورد');
-        $purchase = app(TradeDraftService::class)->createPurchase($this->purchasePayload($supplier, $product, $warehouse), $creator->id);
-        $sale = app(TradeDraftService::class)->createSale($this->salePayload($customer, $product, $warehouse), $creator->id);
+        $purchase = app(TradeEntryService::class)->createPurchase($this->purchasePayload($supplier, $product, $warehouse), $creator->id);
+        $sale = app(TradeEntryService::class)->createSale($this->salePayload($customer, $product, $warehouse), $creator->id);
 
         $this->actingAs($transport)->get(route('dashboard'))
             ->assertOk()

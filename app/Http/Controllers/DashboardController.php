@@ -101,7 +101,7 @@ class DashboardController extends Controller
                 'today_expenses' => $this->sumType($todayFinance, FinancialTransactionType::Expense),
                 'net_profit' => $valuationReport['operating_result'],
                 'draft_sales' => Sale::query()->where('status', TransactionStatus::Draft->value)->count(),
-                'awaiting_weighing' => SaleItem::query()->whereHas('sale', fn ($query) => $query->where('status', TransactionStatus::Draft->value))->where(function ($query): void {
+                'awaiting_weighing' => SaleItem::query()->whereHas('sale', fn ($query) => $query->whereIn('status', [TransactionStatus::Draft->value, TransactionStatus::AwaitingWeighing->value]))->where(function ($query): void {
                     $query->whereDoesntHave('weighingRecord')->orWhereHas('weighingRecord', fn ($weighing) => $weighing->where('status', 'DRAFT'));
                 })->count(),
             ],

@@ -6,11 +6,10 @@ use App\Enums\WeighingMode;
 use App\Http\Requests\Concerns\ConvertsJalaliDates;
 use App\Http\Requests\Concerns\ValidatesPetroleumAmounts;
 use App\Models\FinancialAccount;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class SimpleSaleRequest extends FormRequest
+class SimpleSaleRequest extends OperationalEntryRequest
 {
     use ConvertsJalaliDates, ValidatesPetroleumAmounts;
 
@@ -51,6 +50,13 @@ class SimpleSaleRequest extends FormRequest
             }
             if ($mode === WeighingMode::TwoStage->value && $this->filled('first_weight_kg') && $this->filled('second_weight_kg') && bccomp((string) $this->input('first_weight_kg'), (string) $this->input('second_weight_kg'), 3) <= 0) {
                 $validator->errors()->add('first_weight_kg', __('weighings.errors.first_must_exceed_second'));
+            }
+            if ($this->input('submit_action') === 'await_weighing') {
+                if ($this->filled('net_weight_kg') || $this->filled('second_weight_kg')) {
+                    $validator->errors()->add('submit_action', 'وزن نهایی موجود است. ثبت نهایی فروش را انتخاب کنید.');
+                } elseif (! $this->filled('first_weight_kg') && ! $this->filled('requested_quantity_kg')) {
+                    $validator->errors()->add('requested_quantity_kg', 'مقدار درخواستی را برای ارسال به وزن‌کشی بنویسید.');
+                }
             }
             if ($this->input('submit_action') === 'confirm') {
                 if ($mode === WeighingMode::DirectNet->value && ! $this->filled('net_weight_kg')) {
@@ -97,7 +103,7 @@ class SimpleSaleRequest extends FormRequest
             'vehicle_number' => ['nullable', 'string', 'max:100'],
             'driver_name' => ['nullable', 'string', 'max:150'],
             'ticket_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
-            'submit_action' => ['required', Rule::in(['draft', 'confirm'])],
+            'submit_action' => ['required', Rule::in(['await_weighing', 'confirm'])],
             'payment_amount' => ['nullable', 'numeric', 'gt:0', 'regex:/^(?:0|[1-9]\d{0,15})(?:\.\d{1,2})?$/'],
             'financial_account_id' => ['nullable', 'required_with:payment_amount', 'integer', Rule::exists('financial_accounts', 'id')->where('is_active', true)],
             'exchange_rate_to_usd' => ['nullable', 'numeric', 'gt:0', 'regex:/^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/'],

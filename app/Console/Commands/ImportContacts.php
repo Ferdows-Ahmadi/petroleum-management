@@ -13,6 +13,8 @@ class ImportContacts extends Command
 {
     protected $signature = 'contacts:import
         {source : Local UTF-8 contact list}
+        {--include-general : Admit unambiguous PARTNER rows as general contacts}
+        {--decisions= : Local private JSON containing owner-reviewed source-line identity decisions}
         {--apply= : Apply eligible groups using the reviewed preview fingerprint}
         {--json : Print the private report as JSON}';
 
@@ -27,7 +29,16 @@ class ImportContacts extends Command
                 throw new InvalidArgumentException('Supply the fingerprint from a fresh preview with --apply.');
             }
             $source = $this->readSource($this->argument('source'));
-            $report = $apply ? $import->apply($source, $fingerprint) : $import->preview($source);
+            $includeGeneral = (bool) $this->option('include-general');
+            $decisions = null;
+            if ($this->input->hasParameterOption('--decisions', true)) {
+                $json = $this->readSource((string) $this->option('decisions'));
+                $decisions = json_decode(str_starts_with($json, "\xEF\xBB\xBF") ? substr($json, 3) : $json, true);
+                if (! is_array($decisions)) {
+                    throw new InvalidArgumentException('Expected a private JSON identity decision file.');
+                }
+            }
+            $report = $apply ? $import->apply($source, $fingerprint, $includeGeneral, $decisions) : $import->preview($source, $includeGeneral, $decisions);
         } catch (InvalidArgumentException $error) {
             return $this->failImport($error->getMessage());
         } catch (Throwable) {
@@ -72,6 +83,7 @@ class ImportContacts extends Command
     private function renderReport(array $report): void
     {
         $this->info($report['mode'] === 'applied' ? 'Applied contact import' : 'Contact import preview');
+        $this->line($report['include_general'] ? 'General contacts: include eligible PARTNER rows' : 'General contacts: hold PARTNER rows for review');
         foreach ($report['groups'] as $group) {
             $lines = implode(', ', $group['lines']);
             $categories = implode(', ', $group['categories']);
@@ -80,6 +92,12 @@ class ImportContacts extends Command
                 $entry .= ' | partner #'.$group['partner_id'];
             }
             $this->writeReportLine($entry);
+            if (isset($group['decision'])) {
+                $this->writeReportLine('  Reviewed identity: '.$group['decision'].' | role: '.($group['role'] ?? 'pending'));
+                foreach ($group['source_entries'] as $sourceEntry) {
+                    $this->writeReportLine('  Source line '.$sourceEntry['line'].': '.$sourceEntry['category'].' | '.$sourceEntry['name']);
+                }
+            }
             if ($group['reasons']) {
                 $this->writeReportLine('  Reasons: '.implode(', ', $group['reasons']));
             }

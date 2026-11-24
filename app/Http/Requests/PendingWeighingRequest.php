@@ -4,11 +4,10 @@ namespace App\Http\Requests;
 
 use App\Enums\WeighingMode;
 use App\Http\Requests\Concerns\ConvertsJalaliDates;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class PendingWeighingRequest extends FormRequest
+class PendingWeighingRequest extends OperationalEntryRequest
 {
     use ConvertsJalaliDates;
 
