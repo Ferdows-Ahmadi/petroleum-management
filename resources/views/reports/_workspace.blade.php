@@ -1,17 +1,46 @@
 @php
     $user = auth()->user();
-    $tradeReports = $user->hasAnyRole('GENERAL_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT', 'PURCHASE_SALES_OFFICER', 'WAREHOUSE_OFFICER');
-    $accountReports = $user->hasAnyRole('GENERAL_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT', 'PURCHASE_SALES_OFFICER');
-    $financeReports = $user->hasAnyRole('GENERAL_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT');
+    $trade = $user->hasAnyRole('GENERAL_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT', 'PURCHASE_SALES_OFFICER', 'WAREHOUSE_OFFICER');
+    $office = $user->hasAnyRole('GENERAL_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT', 'PURCHASE_SALES_OFFICER');
+    $finance = $user->hasAnyRole('GENERAL_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT');
+    $links = [
+        ['purchases', 'خرید', $trade], ['sales', 'فروش', $trade], ['weighings', 'وزن‌کشی', true],
+        ['settlements', 'تصفیه', $office], ['accounts', 'حساب‌ها', $office], ['inventory', 'ذخیره', $trade],
+        ['expenses', 'مصارف', $finance], ['profit-loss', 'نتیجه مالی', $finance], ['capital', 'سرمایه', $finance],
+    ];
+    $index = request()->routeIs('reports.index');
+    $scope = collect([
+        ($products ?? $report['products'] ?? collect())->firstWhere('id', request('product_id'))?->name,
+        ($warehouses ?? $report['warehouses'] ?? collect())->firstWhere('id', request('warehouse_id'))?->name,
+        isset($partners) && !isset($selected) ? $partners->find(request('partner_id') ?? request('capital_partner_id'))?->name : null,
+        isset($accounts) ? $accounts->find(request('financial_account_id'))?->name : null,
+    ])->filter()->implode(' · ');
 @endphp
-<div class="print-header"><img src="{{ asset('images/naftyar-logo.png') }}" alt="{{ __('common.app_name') }}"><div><strong>{{ $reportTitle ?? trim($__env->yieldContent('title')) }}</strong><div class="ltr-value">@jalali(now())</div></div></div>
 <div class="section-head no-print">
-    <nav class="workspace-tabs office-wide-tabs" aria-label="گزارش‌ها">
-        @if($tradeReports)<a class="workspace-tab {{ request()->routeIs('reports.purchases') ? 'active' : '' }}" href="{{ route('reports.purchases') }}">خرید</a><a class="workspace-tab {{ request()->routeIs('reports.sales') ? 'active' : '' }}" href="{{ route('reports.sales') }}">فروش</a>@endif
-        <a class="workspace-tab {{ request()->routeIs('reports.weighings') ? 'active' : '' }}" href="{{ route('reports.weighings') }}">وزن‌کشی</a>
-        @if($accountReports)<a class="workspace-tab {{ request()->routeIs('reports.settlements') ? 'active' : '' }}" href="{{ route('reports.settlements') }}">تصفیه</a><a class="workspace-tab" href="{{ route('office.accounts') }}">حساب‌ها</a>@endif
-        @if($tradeReports)<a class="workspace-tab" href="{{ route('office.storage') }}">ذخیره</a>@endif
-        @if($financeReports)<a class="workspace-tab {{ request()->routeIs('reports.expenses') ? 'active' : '' }}" href="{{ route('reports.expenses') }}">مصارف</a><a class="workspace-tab {{ request()->routeIs('reports.profit-loss') ? 'active' : '' }}" href="{{ route('reports.profit-loss') }}">نتیجه مالی</a><a class="workspace-tab {{ request()->routeIs('reports.capital') ? 'active' : '' }}" href="{{ route('reports.capital') }}">سرمایه</a>@endif
+    <nav class="{{ $index ? 'report-directory' : 'workspace-tabs office-wide-tabs' }}" aria-label="گزارش‌ها">
+        @foreach($links as [$route, $label, $allowed])
+            @if($allowed)
+                @php($active = request()->routeIs('reports.'.$route) || ($route === 'accounts' && request()->routeIs('reports.accounts.journal')))
+                <a class="workspace-tab {{ $active ? 'active' : '' }}" @if($active) aria-current="page" @endif href="{{ route('reports.'.$route) }}">{{ $label }}</a>
+            @endif
+        @endforeach
     </nav>
-    @unless(request()->routeIs('reports.index'))<button class="btnx btn-lightx" type="button" onclick="window.print()"><i class="bi bi-printer"></i>چاپ / PDF</button>@endunless
+    @unless($index)<button class="btnx btn-lightx" type="button" onclick="window.print()"><i class="bi bi-printer" aria-hidden="true"></i>چاپ / PDF</button>@endunless
 </div>
+@unless($index)
+    <div class="print-header"><img src="{{ asset('images/naftyar-logo.png') }}" alt="{{ __('common.app_name') }}"><strong>{{ trim($__env->yieldContent('title')) }}</strong></div>
+    <div class="report-period">
+        @if(isset($date))
+            <span>تاریخ <bdi>@jalali($date)</bdi></span>
+        @elseif(!empty($dateInputs['date_from']) || !empty($dateInputs['date_to']))
+            @if(!empty($dateInputs['date_from']))<span>از <bdi>{{ $dateInputs['date_from'] }}</bdi></span>@endif
+            @if(!empty($dateInputs['date_to']))<span>تا <bdi>{{ $dateInputs['date_to'] }}</bdi></span>@endif
+        @else
+            <span>دوره: تمام اسناد ثبت‌شده</span>
+        @endif
+        @if($reportUnit ?? true)
+            <span>واحد: <bdi>{{ $reportUnit ?? 'USD' }}</bdi></span>
+        @endif
+        @if(!empty($reportSubject) || $scope)<strong>{{ $reportSubject ?? $scope }}</strong>@endif
+    </div>
+@endunless

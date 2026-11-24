@@ -43,8 +43,9 @@ class ReportController extends Controller
             ->when($filters['date_from'] ?? null, fn (Builder $query, string $date) => $query->whereDate('purchase_date', '>=', $date))
             ->when($filters['date_to'] ?? null, fn (Builder $query, string $date) => $query->whereDate('purchase_date', '<=', $date))
             ->when($filters['partner_id'] ?? null, fn (Builder $query, int $id) => $query->where('business_partner_id', $id))
-            ->when($filters['product_id'] ?? null, fn (Builder $query, int $id) => $query->whereHas('items', fn (Builder $items) => $items->where('product_id', $id)))
-            ->when($filters['warehouse_id'] ?? null, fn (Builder $query, int $id) => $query->whereHas('items', fn (Builder $items) => $items->where('warehouse_id', $id)))
+            ->when(! empty($filters['product_id']) || ! empty($filters['warehouse_id']), fn (Builder $query) => $query->whereHas('items', fn (Builder $items) => $items
+                ->when($filters['product_id'] ?? null, fn ($items, $id) => $items->where('product_id', $id))
+                ->when($filters['warehouse_id'] ?? null, fn ($items, $id) => $items->where('warehouse_id', $id))))
             ->when(in_array($filters['status'] ?? null, array_column(TransactionStatus::cases(), 'value'), true), fn (Builder $query) => $query->where('status', $filters['status']))
             ->latest('purchase_date')->latest('id')->get();
 
@@ -61,8 +62,9 @@ class ReportController extends Controller
             ->when($filters['date_from'] ?? null, fn (Builder $query, string $date) => $query->whereDate('sale_date', '>=', $date))
             ->when($filters['date_to'] ?? null, fn (Builder $query, string $date) => $query->whereDate('sale_date', '<=', $date))
             ->when($filters['partner_id'] ?? null, fn (Builder $query, int $id) => $query->where('business_partner_id', $id))
-            ->when($filters['product_id'] ?? null, fn (Builder $query, int $id) => $query->whereHas('items', fn (Builder $items) => $items->where('product_id', $id)))
-            ->when($filters['warehouse_id'] ?? null, fn (Builder $query, int $id) => $query->whereHas('items', fn (Builder $items) => $items->where('warehouse_id', $id)))
+            ->when(! empty($filters['product_id']) || ! empty($filters['warehouse_id']), fn (Builder $query) => $query->whereHas('items', fn (Builder $items) => $items
+                ->when($filters['product_id'] ?? null, fn ($items, $id) => $items->where('product_id', $id))
+                ->when($filters['warehouse_id'] ?? null, fn ($items, $id) => $items->where('warehouse_id', $id))))
             ->when(in_array($filters['status'] ?? null, array_column(TransactionStatus::cases(), 'value'), true), fn (Builder $query) => $query->where('status', $filters['status']))
             ->latest('sale_date')->latest('id')->get();
 
@@ -127,17 +129,41 @@ class ReportController extends Controller
         $partners = CapitalPartner::query()
             ->when($filters['capital_partner_id'] ?? null, fn (Builder $query, int $id) => $query->whereKey($id))
             ->orderBy('name')->get();
-        $summaries = $partners->map(fn (CapitalPartner $partner): array => ['partner' => $partner] + $balances->summaryFor(
-            $partner,
-            $filters['date_from'] ?? null,
-            $filters['date_to'] ?? null,
-        ));
+        $summaries = $partners->map(function (CapitalPartner $partner) use ($filters, $balances): array {
+            $from = $filters['date_from'] ?? null;
+            $to = $filters['date_to'] ?? null;
+            $period = $balances->summaryFor($partner, $from, $to);
+            $closing = $from ? $balances->summaryFor($partner, null, $to)['balance'] : $period['balance'];
+
+            return ['partner' => $partner, 'closing' => $closing] + $period;
+        });
 
         return view('reports.capital', [
             'rows' => $summaries,
             'filters' => $filters,
             'partners' => CapitalPartner::query()->where('is_active', true)->orderBy('name')->get(),
             'dateInputs' => $request->jalaliDateInputs(),
+        ]);
+    }
+
+    public function inventory(ReportFilterRequest $request, InventoryValuationService $valuation): View
+    {
+        $report = $valuation->report(
+            to: $request->validated('date_to'),
+            productId: $request->integer('product_id') ?: null,
+            warehouseId: $request->integer('warehouse_id') ?: null,
+        );
+        $quantity = $report['streams']->reduce(fn (string $sum, array $stream): string => bcadd($sum, $stream['quantity_kg'], 3), '0.000');
+        $showValue = $request->user()->hasAnyRole('GENERAL_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT', 'PURCHASE_SALES_OFFICER');
+
+        return view('reports.inventory', [
+            'streams' => $report['streams'],
+            'value' => $report['inventory_value'],
+            'products' => Product::query()->orderBy('name')->get(),
+            'warehouses' => Warehouse::query()->orderBy('name')->get(),
+            'dateInputs' => $request->jalaliDateInputs(),
+            'quantity' => $quantity,
+            'showValue' => $showValue,
         ]);
     }
 

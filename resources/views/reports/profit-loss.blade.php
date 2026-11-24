@@ -1,6 +1,6 @@
-@extends('layouts.app')
+@extends('reports.layout')
 @section('title', __('reports.profit_loss'))
-@section('content')
+@section('report')
 <x-page-header :title="__('reports.profit_loss')" :subtitle="__('reports.subtitle')" />
 @include('reports._workspace')
 <section class="cardx card-pad"><form class="filters"><label class="field"><span>{{ __('reports.date_from') }}</span><input class="control filter-control ltr-value" name="date_from" value="{{ $dateInputs['date_from'] ?? '' }}"></label><label class="field"><span>{{ __('reports.date_to') }}</span><input class="control filter-control ltr-value" name="date_to" value="{{ $dateInputs['date_to'] ?? '' }}"></label><label class="field grow"><span>{{ __('trades.product') }}</span><select class="control" name="product_id"><option value="">{{ __('reports.all_products') }}</option>@foreach($report['products'] as $product)<option value="{{ $product->id }}" @selected(request('product_id') == $product->id)>{{ $product->name }}</option>@endforeach</select></label><label class="field grow"><span>{{ __('trades.warehouse') }}</span><select class="control" name="warehouse_id"><option value="">{{ __('reports.all_warehouses') }}</option>@foreach($report['warehouses'] as $warehouse)<option value="{{ $warehouse->id }}" @selected(request('warehouse_id') == $warehouse->id)>{{ $warehouse->name }}</option>@endforeach</select></label><button class="btnx btn-lightx">{{ __('common.filter') }}</button></form></section>

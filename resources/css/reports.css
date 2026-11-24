@@ -1,0 +1,20 @@
+/* Report tables use the same figures and reading order on screen and paper. */
+.report-document .tablex th, .report-document .tablex td { padding-block: .45rem; }
+.report-period, .report-totals { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1.25rem; margin-block: .65rem; }
+.report-period { color: var(--muted); font-size: .88rem; }
+.report-directory { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .6rem; }
+.report-directory .workspace-tab { justify-content: start; padding: .85rem 1rem; }
+.report-switch { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .6rem; }
+@media print {
+    .report-document .page-head, .report-document .filters, .report-document .no-print,
+    .report-document .cardx:has(> .filters) { display: none !important; }
+    .report-document { color: #111; direction: rtl; }
+    .report-document .table-wrap { overflow: visible; }
+    .report-document .tablex { width: 100%; min-width: 0; }
+    .report-document .tablex :is(th, td) { white-space: normal; }
+    .report-document thead { display: table-header-group; }
+    .report-document tr, .report-document .kpi { break-inside: avoid; }
+    .report-document .cardx { overflow: visible; }
+    .report-document a { text-decoration: none; color: inherit; }
+    .report-period { color: #222; }
+}

@@ -300,7 +300,7 @@ class ManagementReportTest extends TestCase
 
         $this->actingAs($user)->get(route('reports.capital', ['date_from' => '1405/05/19', 'date_to' => '1405/05/19']))
             ->assertOk()
-            ->assertViewHas('rows', fn ($rows) => $rows->first()['balance'] === '80.00')
+            ->assertViewHas('rows', fn ($rows) => $rows->first()['balance'] === '80.00' && $rows->first()['closing'] === '120.00')
             ->assertSee('value="1405/05/19"', false)
             ->assertDontSee('value="2026-08-10"', false);
     }
@@ -331,7 +331,7 @@ class ManagementReportTest extends TestCase
         app(CapitalTransactionService::class)->confirm($capital, $user->id);
 
         $this->actingAs($user)->get(route('reports.weighings'))->assertOk()->assertViewHas('totalNet', '250.000');
-        $this->actingAs($user)->get(route('reports.capital'))->assertOk()->assertViewHas('rows', fn ($rows) => $rows->first()['balance'] === '80.00');
+        $this->actingAs($user)->get(route('reports.capital'))->assertOk()->assertViewHas('rows', fn ($rows) => $rows->first()['balance'] === '80.00' && $rows->first()['closing'] === '80.00');
     }
 
     /** @return array{mixed, mixed, mixed, mixed, mixed} */

@@ -1,6 +1,6 @@
-@extends('layouts.app')
+@extends('reports.layout')
 @section('title', __('reports.settlements'))
-@section('content')
+@section('report')
 <x-page-header :title="__('reports.settlements')" :subtitle="__('reports.settlements_subtitle')" />
 @include('reports._workspace')
 <section class="cardx card-pad"><form method="GET" class="filters"><label class="field"><span>{{ __('reports.date_from') }}</span><input class="control ltr-value" name="date_from" value="{{ $dateInputs['date_from'] ?? '' }}"></label><label class="field"><span>{{ __('reports.date_to') }}</span><input class="control ltr-value" name="date_to" value="{{ $dateInputs['date_to'] ?? '' }}"></label><label class="field"><span>{{ __('trades.product') }}</span><select class="control" name="product_id"><option value="">{{ __('reports.all_products') }}</option>@foreach($products as $product)<option value="{{ $product->id }}" @selected((string)($filters['product_id'] ?? '') === (string)$product->id)>{{ $product->name }}</option>@endforeach</select></label><label class="field"><span>{{ __('common.status') }}</span><select class="control" name="status"><option value="">{{ __('reports.all') }}</option><option value="CONFIRMED" @selected(($filters['status'] ?? '') === 'CONFIRMED')>{{ __('settlements.record_status.CONFIRMED') }}</option><option value="DRAFT" @selected(($filters['status'] ?? '') === 'DRAFT')>{{ __('settlements.record_status.DRAFT') }}</option><option value="UNRESOLVED" @selected(($filters['status'] ?? '') === 'UNRESOLVED')>{{ __('reports.unresolved_deals') }}</option></select></label><button class="btnx btn-primaryx">{{ __('common.filter') }}</button></form></section>
