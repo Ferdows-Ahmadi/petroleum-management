@@ -222,16 +222,27 @@ class ReportController extends Controller
         $dealRows = app(DealTradeReportService::class)->rows($mode, $filters);
         $dealTotals = in_array($filters['status'] ?? null, array_column(TransactionStatus::cases(), 'value'), true) ? $dealRows : $dealRows->where('confirmed', true);
         $quantity = $totalsRecords->reduce(fn (string $total, $record): string => bcadd($total, $mode === 'purchases' ? $record->total_quantity_kg : $record->total_final_quantity_kg, 3), '0.000');
-        $amount = $totalsRecords->reduce(fn (string $total, $record): string => bcadd($total, $record->total_amount, 2), '0.00');
-        $quantity = $dealTotals->reduce(fn ($total, $row) => bcadd($total, $row['quantity'], 3), $quantity);
-        $amount = $dealTotals->reduce(fn ($total, $row) => bcadd($total, $row['amount'], 2), $amount);
+        $quantity = $dealTotals->reduce(fn ($total, $row) => bcadd($total, $row['quantity'] ?? '0', 3), $quantity);
+        $amounts = [];
+        foreach ($totalsRecords as $record) {
+            $currency = $record->currency->value;
+            $amounts[$currency] = bcadd($amounts[$currency] ?? '0', $record->total_amount, 2);
+        }
+        foreach ($dealTotals as $row) {
+            if ($row['amount'] !== null) {
+                $currency = $row['currency'];
+                $amounts[$currency] = bcadd($amounts[$currency] ?? '0', $row['amount'], 2);
+            }
+        }
 
         return [
             'records' => $records,
             'dealRows' => $dealRows,
             'mode' => $mode,
             'totalQuantity' => $quantity,
-            'totalAmount' => $amount,
+            'totalAmount' => $amounts['USD'] ?? '0.00',
+            'totalAmounts' => $amounts,
+            'currencies' => $records->pluck('currency.value')->concat($dealRows->pluck('currency'))->unique()->implode(' / '),
             'totalRecords' => $totalsRecords->count() + $dealTotals->count(),
             'totalsConfirmedOnly' => ! in_array($filters['status'] ?? null, array_column(TransactionStatus::cases(), 'value'), true),
             'filters' => $filters,

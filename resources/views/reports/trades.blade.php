@@ -3,9 +3,48 @@
 @section('report')
     @php($canViewPrices = auth()->user()->hasAnyRole('GENERAL_MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT', 'PURCHASE_SALES_OFFICER'))
 <x-page-header :title="__($mode === 'purchases' ? 'reports.purchases' : 'reports.sales')" :subtitle="__('reports.subtitle')" />
-@include('reports._workspace', ['reportUnit' => $canViewPrices ? 'kg / USD' : 'kg'])
+@include('reports._workspace', ['reportUnit' => $canViewPrices && $currencies ? 'kg / '.$currencies : 'kg'])
 <section class="cardx card-pad"><form class="filters"><label class="field"><span>{{ __('reports.date_from') }}</span><input class="control filter-control ltr-value" name="date_from" value="{{ $dateInputs['date_from'] ?? '' }}" placeholder="1405/05/01"></label><label class="field"><span>{{ __('reports.date_to') }}</span><input class="control filter-control ltr-value" name="date_to" value="{{ $dateInputs['date_to'] ?? '' }}" placeholder="1405/05/30"></label><label class="field grow"><span>{{ __('contracts.partner') }}</span><select class="control" name="partner_id"><option value="">{{ __('reports.all_partners') }}</option>@foreach($partners as $partner)<option value="{{ $partner->id }}" @selected(request('partner_id') == $partner->id)>{{ $partner->name }} · {{ $partner->reference_code }}</option>@endforeach</select></label><label class="field"><span>{{ __('trades.product') }}</span><select class="control" name="product_id"><option value="">{{ __('reports.all_products') }}</option>@foreach($products as $product)<option value="{{ $product->id }}" @selected(request('product_id') == $product->id)>{{ $product->name }}</option>@endforeach</select></label><label class="field"><span>{{ __('trades.warehouse') }}</span><select class="control" name="warehouse_id"><option value="">{{ __('reports.all_warehouses') }}</option>@foreach($warehouses as $warehouse)<option value="{{ $warehouse->id }}" @selected(request('warehouse_id') == $warehouse->id)>{{ $warehouse->name }}</option>@endforeach</select></label><label class="field"><span>{{ __('common.status') }}</span><select class="control" name="status"><option value="">{{ __('reports.all_statuses') }}</option>@foreach($statuses as $status)<option value="{{ $status->value }}" @selected(request('status') === $status->value)>{{ $status->label() }}</option>@endforeach</select></label><button class="btnx btn-lightx">{{ __('common.filter') }}</button></form></section>
-<div class="kpis" style="margin-top:18px"><div class="cardx kpi"><div class="kpi-label">{{ __($totalsConfirmedOnly ? 'reports.confirmed_total_records' : 'reports.total_records') }}</div><div class="kpi-value">{{ $totalRecords }}</div></div><div class="cardx kpi"><div class="kpi-label">{{ __($totalsConfirmedOnly ? 'reports.confirmed_total_quantity' : 'reports.total_quantity') }}</div><div class="kpi-value ltr-value">{{ app(\App\Support\NumberFormat::class)->weight($totalQuantity) }} kg</div></div><div class="cardx kpi"><div class="kpi-label">{{ __($totalsConfirmedOnly ? 'reports.confirmed_total_amount' : 'reports.total_amount') }}</div><div class="kpi-value ltr-value">{{ $canViewPrices ? (app(\App\Support\NumberFormat::class)->money($totalAmount)) : '—' }} USD</div></div></div>
-<section class="cardx card-pad">@if($records->isEmpty() && $dealRows->isEmpty())<div class="empty compact">{{ __('common.no_records') }}</div>@else<div class="table-wrap"><table class="tablex"><thead><tr><th>{{ __('common.reference') }}</th><th>{{ __('finance.transaction_date') }}</th><th>{{ __('contracts.partner') }}</th><th>{{ __('reports.total_quantity') }}</th><th>{{ __('reports.total_amount') }}</th><th>{{ __('common.status') }}</th></tr></thead><tbody>@foreach($records as $record)<tr><td><a href="{{ route($mode.'.show', $record) }}">{{ $record->reference_number }}</a></td><td class="ltr-value">{{ app(\App\Support\JalaliDate::class)->format($mode === 'purchases' ? $record->purchase_date : $record->sale_date) }}</td><td>{{ $mode === 'purchases' ? $record->supplier->name : $record->customer->name }}</td><td class="ltr-value">{{ app(\App\Support\NumberFormat::class)->weight(($mode === 'purchases' ? $record->total_quantity_kg : $record->total_final_quantity_kg)) }} kg</td><td class="ltr-value">{{ $canViewPrices ? (app(\App\Support\NumberFormat::class)->money($record->total_amount)) : '—' }} USD</td><td><span class="badge">{{ $record->status->label() }}</span></td></tr>@endforeach
-@foreach($dealRows as $row)<tr><td><a href="{{ route('deals.show', $row['deal']) }}">{{ $row['deal']->reference_code }}</a></td><td class="ltr-value">@jalali($row['deal']->deal_date)</td><td>{{ $row['party']?->name ?: '—' }}</td><td class="ltr-value">{{ app(\App\Support\NumberFormat::class)->weight($row['quantity']) }} kg</td><td class="ltr-value">{{ $canViewPrices ? (app(\App\Support\NumberFormat::class)->money($row['amount'])) : '—' }} USD</td><td>{{ $row['deal']->status->label() }}</td></tr>@endforeach</tbody></table></div>@endif</section>
+@if(!empty($filters['warehouse_id']))
+    <p class="section-note">در معاملات روزانه، فقط مقدار تخصیص‌یافته به ذخیرهٔ انتخاب‌شده در این گزارش می‌آید.</p>
+@endif
+<div class="kpis" style="margin-top:18px">
+    <div class="cardx kpi"><div class="kpi-label">{{ __($totalsConfirmedOnly ? 'reports.confirmed_total_records' : 'reports.total_records') }}</div><div class="kpi-value">{{ $totalRecords }}</div></div>
+    <div class="cardx kpi"><div class="kpi-label">{{ __($totalsConfirmedOnly ? 'reports.confirmed_total_quantity' : 'reports.total_quantity') }}</div><div class="kpi-value ltr-value">{{ app(\App\Support\NumberFormat::class)->weight($totalQuantity) }} kg</div></div>
+    @if($canViewPrices)
+        <div class="cardx kpi">
+            <div class="kpi-label">{{ __($totalsConfirmedOnly ? 'reports.confirmed_total_amount' : 'reports.total_amount') }}</div>
+            @forelse($totalAmounts as $currency => $amount)<div class="kpi-value ltr-value">@money($amount) {{ $currency }}</div>
+            @empty<div class="kpi-value">—</div>@endforelse
+            @if($dealRows->contains('split_revenue', true))<div>مبلغ فروشِ سهم مشترک در مجموع شامل نیست.</div>@endif
+        </div>
+    @endif
+</div>
+<section class="cardx card-pad">
+    @if($records->isEmpty() && $dealRows->isEmpty())
+        <div class="empty compact">{{ __('common.no_records') }}</div>
+    @else
+        <div class="table-wrap"><table class="tablex">
+            <thead><tr><th>{{ __('common.reference') }}</th><th>{{ __('finance.transaction_date') }}</th><th>{{ __('contracts.partner') }}</th><th>{{ __('reports.total_quantity') }}</th>@if($canViewPrices)<th>{{ __('reports.total_amount') }}</th>@endif<th>{{ __('common.status') }}</th></tr></thead>
+            <tbody>
+            @foreach($records as $record)
+                <tr><td><a href="{{ route($mode.'.show', $record) }}">{{ $record->reference_number ?: $record->reference_code }}</a></td>
+                    <td class="ltr-value">@jalali($mode === 'purchases' ? $record->purchase_date : $record->sale_date)</td>
+                    <td>{{ ($mode === 'purchases' ? $record->supplier?->name : $record->customer?->name) ?? '—' }}</td>
+                    <td class="ltr-value">@weight($mode === 'purchases' ? $record->total_quantity_kg : $record->total_final_quantity_kg) kg</td>
+                    @if($canViewPrices)<td class="ltr-value">@money($record->total_amount) {{ $record->currency->value }}</td>@endif
+                    <td><span class="badge">{{ $record->status->label() }}</span></td></tr>
+            @endforeach
+            @foreach($dealRows as $row)
+                <tr><td><a href="{{ route('deals.show', $row['deal']) }}">{{ $row['deal']->reference_code }}</a></td>
+                    <td class="ltr-value">@jalali($row['deal']->deal_date)</td><td>{{ $row['party']?->name ?: '—' }}</td>
+                    <td class="ltr-value">@if($row['quantity'] !== null)@weight($row['quantity']) kg @else — @endif</td>
+                    @if($canViewPrices)
+                        <td>@if($row['split_revenue'])سهم مبلغ فروش ثبت نشده است @elseif($row['amount'] === null) — @else<bdi>@money($row['amount']) {{ $row['currency'] }}</bdi>@endif</td>
+                    @endif
+                    <td>{{ $row['deal']->status->label() }}</td></tr>
+            @endforeach
+            </tbody></table></div>
+    @endif
+</section>
 @endsection
