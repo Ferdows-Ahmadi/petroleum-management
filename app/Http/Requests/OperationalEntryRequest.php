@@ -10,6 +10,7 @@ abstract class OperationalEntryRequest extends FormRequest
     {
         return parent::validationRules() + [
             'submit_action' => ['prohibited'],
+            'confirm_now' => ['prohibited'],
             'status' => ['prohibited'],
             'save_draft' => ['prohibited'],
         ];

@@ -9,7 +9,9 @@
         $selectedWarehouse = old('warehouse_id', $defaultWarehouse?->id);
         $canViewTicket = auth()->user()->hasAnyRole('GENERAL_MANAGER', 'SYSTEM_ADMIN', 'PURCHASE_SALES_OFFICER', 'TRANSPORT_OFFICER');
     @endphp
-    <x-page-header :title="__('office.transactions')" :subtitle="__('office.transactions_subtitle')" />
+    <x-page-header :title="__('office.transactions')" :subtitle="__('office.transactions_subtitle')">
+        <a class="btnx btn-lightx" href="{{ route('deals.index') }}#deal-ledger">دفتر معاملات</a>
+    </x-page-header>
 
     <nav class="workspace-tabs" aria-label="{{ __('office.transactions') }}">
         @if($canCreateTrade)<a class="workspace-tab {{ $tab === 'purchase' ? 'active' : '' }}" href="{{ route('office.transactions', ['tab' => 'purchase']) }}"><i class="bi bi-box-arrow-in-down"></i>{{ __('office.purchase_tab') }}</a>@endif
@@ -41,12 +43,12 @@
 
         <section class="cardx card-pad office-history">
             <div class="section-title">{{ __('office.recent_purchases') }}</div>
-            <div class="table-wrap"><table class="tablex"><thead><tr><th>{{ __('trades.purchase.date') }}</th><th>{{ __('trades.purchase.supplier') }}</th><th>{{ __('trades.product') }}</th><th>{{ __('trades.quantity_kg') }}</th><th>{{ __('trades.total_amount') }}</th>@if($canViewPartnerAccounts)<th>{{ __('office.partner_balance') }}</th>@endif<th>{{ __('common.status') }}</th><th>{{ __('common.actions') }}</th></tr></thead><tbody>
+            <div class="table-wrap"><table class="tablex"><thead><tr><th>{{ __('trades.purchase.date') }}</th><th>{{ __('trades.purchase.supplier') }}</th><th>{{ __('trades.product') }}</th><th>{{ __('trades.quantity_kg') }}</th>@if($canViewPartnerAccounts)<th>{{ __('trades.total_amount') }}</th><th>{{ __('office.partner_balance') }}</th>@endif<th>{{ __('common.status') }}</th><th>{{ __('common.actions') }}</th></tr></thead><tbody>
                 @forelse($purchases as $purchase)
                     @php($partnerBalance = $partnerBalances->get($purchase->business_partner_id, '0.00'))
-                    <tr><td class="ltr-value">@jalali($purchase->purchase_date)</td><td class="td-main">{{ $purchase->supplier->name }}</td><td>{{ $purchase->items->pluck('product.name')->join('، ') }}</td><td class="ltr-value">{{ app(\App\Support\NumberFormat::class)->weight($purchase->total_quantity_kg) }} kg</td><td class="ltr-value">{{ app(\App\Support\NumberFormat::class)->money($purchase->total_amount) }} USD</td>@if($canViewPartnerAccounts)<td><div class="ltr-value">{{ app(\App\Support\NumberFormat::class)->absoluteMoney($partnerBalance) }} USD</div><div class="td-sub">{{ bccomp($partnerBalance, '0', 2) < 0 ? __('finance.company_owes_partner') : (bccomp($partnerBalance, '0', 2) > 0 ? __('finance.partner_owes_company') : __('finance.settled')) }}</div></td>@endif<td><x-transaction-status-badge :status="$purchase->status" /></td><td><a class="section-link" href="{{ route('purchases.show', $purchase) }}">{{ __('common.view') }}</a></td></tr>
+                    <tr><td class="ltr-value">@jalali($purchase->purchase_date)</td><td class="td-main">{{ $purchase->supplier->name }}</td><td>{{ $purchase->items->pluck('product.name')->join('، ') }}</td><td class="ltr-value">{{ app(\App\Support\NumberFormat::class)->weight($purchase->total_quantity_kg) }} kg</td>@if($canViewPartnerAccounts)<td class="ltr-value">{{ app(\App\Support\NumberFormat::class)->money($purchase->total_amount) }} USD</td><td><div class="ltr-value">{{ app(\App\Support\NumberFormat::class)->absoluteMoney($partnerBalance) }} USD</div><div class="td-sub">{{ bccomp($partnerBalance, '0', 2) < 0 ? __('finance.company_owes_partner') : (bccomp($partnerBalance, '0', 2) > 0 ? __('finance.partner_owes_company') : __('finance.settled')) }}</div></td>@endif<td><x-transaction-status-badge :status="$purchase->status" /></td><td><a class="section-link" href="{{ route('purchases.show', $purchase) }}">{{ __('common.view') }}</a></td></tr>
                 @empty
-                    <tr><td colspan="{{ $canViewPartnerAccounts ? 8 : 7 }}"><div class="empty compact">{{ __('common.no_records') }}</div></td></tr>
+                    <tr><td colspan="{{ $canViewPartnerAccounts ? 8 : 6 }}"><div class="empty compact">{{ __('common.no_records') }}</div></td></tr>
                 @endforelse
             </tbody></table></div>
         </section>
@@ -83,14 +85,14 @@
 
         <section class="cardx card-pad office-history">
             <div class="section-title">{{ __('office.recent_sales') }}</div>
-            <div class="table-wrap"><table class="tablex"><thead><tr><th>{{ __('trades.sale.date') }}</th><th>{{ __('trades.sale.customer') }}</th><th>{{ __('trades.product') }}</th><th>{{ __('trades.requested_quantity_kg') }}</th><th>{{ __('weighings.net_weight_kg') }}</th>@if($canViewTrade)<th>{{ __('trades.total_amount') }}</th>@endif @if($canViewPartnerAccounts)<th>{{ __('office.partner_balance') }}</th>@endif<th>{{ __('common.status') }}</th><th>{{ __('common.actions') }}</th></tr></thead><tbody>
+            <div class="table-wrap"><table class="tablex"><thead><tr><th>{{ __('trades.sale.date') }}</th><th>{{ __('trades.sale.customer') }}</th><th>{{ __('trades.product') }}</th><th>{{ __('trades.requested_quantity_kg') }}</th><th>{{ __('weighings.net_weight_kg') }}</th>@if($canViewPartnerAccounts)<th>{{ __('trades.total_amount') }}</th>@endif @if($canViewPartnerAccounts)<th>{{ __('office.partner_balance') }}</th>@endif<th>{{ __('common.status') }}</th><th>{{ __('common.actions') }}</th></tr></thead><tbody>
                 @forelse($sales as $sale)
                     @php($item = $sale->items->first())
                     @php($weighing = $item?->weighingRecord)
                     @php($partnerBalance = $partnerBalances->get($sale->business_partner_id, '0.00'))
                     <tr>
                         <td class="ltr-value">@jalali($sale->sale_date)</td><td class="td-main">{{ $sale->customer->name }}</td><td>{{ $item?->product?->name }}</td><td class="ltr-value">{{ $item?->requested_quantity_kg ? app(\App\Support\NumberFormat::class)->weight($item->requested_quantity_kg).' kg' : '—' }}</td><td class="ltr-value">{{ $item?->final_quantity_kg ? app(\App\Support\NumberFormat::class)->weight($item->final_quantity_kg).' kg' : '—' }}</td>
-                        @if($canViewTrade)<td class="ltr-value">{{ $sale->status === \App\Enums\TransactionStatus::Confirmed ? app(\App\Support\NumberFormat::class)->money($sale->total_amount).' USD' : '—' }}</td>@endif
+                        @if($canViewPartnerAccounts)<td class="ltr-value">{{ $sale->status === \App\Enums\TransactionStatus::Confirmed ? app(\App\Support\NumberFormat::class)->money($sale->total_amount).' USD' : '—' }}</td>@endif
                         @if($canViewPartnerAccounts)<td><div class="ltr-value">{{ app(\App\Support\NumberFormat::class)->absoluteMoney($partnerBalance) }} USD</div><div class="td-sub">{{ bccomp($partnerBalance, '0', 2) < 0 ? __('finance.company_owes_partner') : (bccomp($partnerBalance, '0', 2) > 0 ? __('finance.partner_owes_company') : __('finance.settled')) }}</div></td>@endif
                         <td>@if($sale->status === \App\Enums\TransactionStatus::Confirmed)<x-transaction-status-badge :status="$sale->status" />@elseif(!$weighing)<span class="badge badge-gray">{{ __('office.waiting_weighing') }}</span>@elseif($weighing->status === \App\Enums\WeighingStatus::Draft)<span class="badge badge-amber">{{ __('office.waiting_second_weight') }}</span>@else<span class="badge badge-blue">{{ __('office.ready_confirmation') }}</span>@endif</td>
                         <td><div class="row-actions">
@@ -100,7 +102,7 @@
                         </div></td>
                     </tr>
                 @empty
-                    <tr><td colspan="{{ 7 + ($canViewTrade ? 1 : 0) + ($canViewPartnerAccounts ? 1 : 0) }}"><div class="empty compact">{{ __('common.no_records') }}</div></td></tr>
+                    <tr><td colspan="{{ $canViewPartnerAccounts ? 9 : 7 }}"><div class="empty compact">{{ __('common.no_records') }}</div></td></tr>
                 @endforelse
             </tbody></table></div>
         </section>

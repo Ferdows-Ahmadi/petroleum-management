@@ -58,6 +58,25 @@ class ContractWorkflowTest extends TestCase
         $this->actingAs($user)->post(route('contracts.store'), $this->payload($partner))->assertSessionHasErrors('contract_number');
     }
 
+    public function test_new_contract_requires_an_explicit_non_draft_status_and_historical_drafts_stay_editable(): void
+    {
+        $user = User::factory()->create(['role' => UserRole::GeneralManager]);
+        $partner = BusinessPartner::factory()->create();
+        $this->actingAs($user)->get(route('contracts.create'))->assertOk()->assertDontSee('value="DRAFT"', false);
+        $payload = array_replace($this->payload($partner), ['status' => 'DRAFT']);
+        $this->post(route('contracts.store'), $payload)->assertSessionHasErrors('status');
+        $this->post(route('contracts.store'), array_replace($payload, ['status' => '']))->assertSessionHasErrors('status');
+        $this->assertDatabaseEmpty('contracts');
+        $this->get(route('contracts.create'))->assertOk();
+        $old = Contract::create(array_replace($this->modelPayload($partner, $user->id), ['status' => 'DRAFT']));
+        $this->get(route('contracts.edit', $old))->assertOk()->assertSee('value="DRAFT" selected', false);
+        $this->put(route('contracts.update', $old), $payload)->assertSessionHasNoErrors();
+        $this->assertSame(ContractStatus::Draft, $old->fresh()->status);
+        $this->put(route('contracts.update', $old), $this->payload($partner))->assertSessionHasNoErrors();
+        $this->put(route('contracts.update', $old), $payload)->assertSessionHasErrors('status');
+        $this->assertSame(ContractStatus::Active, $old->fresh()->status);
+    }
+
     public function test_accountant_can_view_contract_but_cannot_mutate_it(): void
     {
         $creator = User::factory()->create(['role' => UserRole::GeneralManager]);

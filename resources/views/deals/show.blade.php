@@ -16,7 +16,7 @@
     @endphp
     <x-page-header :title="__('deals.details')" :subtitle="$deal->reference_code">@if($canEditLines && $deal->sources->count() === 1 && $deal->destinations->count() === 1 && !$weighing?->finalized_at)<a class="btnx btn-primaryx" href="{{ route('deals.edit', $deal) }}">{{ __('common.edit') }}</a>@endif <a class="btnx btn-lightx" href="{{ route('deals.index') }}"><i class="bi bi-arrow-right"></i>{{ __('common.back') }}</a></x-page-header>
 
-    @if($deal->status === \App\Enums\DealStatus::Completed)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('deals.status.COMPLETED') }}</strong><p>اطلاعات اصلی معامله ثبت نهایی شده است. برای توضیح تازه، یادداشت بیفزایید.</p></div></div>
+    @if($deal->status === \App\Enums\DealStatus::Completed)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('deals.status.COMPLETED') }}</strong><p>معلومات اصلی معامله نهایی شده است. برای توضیح تازه، یادداشت بیفزایید.</p></div></div>
     @elseif($weighing?->status === \App\Enums\WeighingStatus::Finalized)<div class="notice subtle-notice">وزن نهایی ثبت شده است و فورم اصلی معامله قابل ویرایش نیست.</div>@endif
 
     @include('deals._notes')

@@ -235,7 +235,7 @@ class SimpleOfficeWorkflowTest extends TestCase
         $this->actingAs($warehouseUser)->get(route('office.transactions'))
             ->assertOk()
             ->assertSee(route('sales.show', $sale), false)
-            ->assertSee(__('trades.total_amount'))
+            ->assertDontSee(__('trades.total_amount'))
             ->assertDontSee(__('office.partner_balance'));
     }
 

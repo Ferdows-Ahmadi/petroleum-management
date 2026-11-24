@@ -4,9 +4,12 @@ namespace Tests\Feature;
 
 use App\Enums\DealStatus;
 use App\Enums\UserRole;
+use App\Models\BusinessPartner;
 use App\Models\Deal;
 use App\Models\Product;
+use App\Models\Sale;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -93,6 +96,30 @@ class OwnerDealRegistrationTest extends TestCase
         $this->assertSame(DealStatus::Completed, $deal->fresh()->status);
     }
 
+    public function test_weighing_workspace_preserves_the_sale_details_price_boundary_and_ledger_link(): void
+    {
+        $sale = Sale::create([
+            'business_partner_id' => BusinessPartner::factory()->create()->id, 'sale_date' => now(),
+            'currency' => 'USD', 'status' => 'CONFIRMED',
+        ]);
+        $sale->items()->create([
+            'product_id' => Product::factory()->create()->id, 'warehouse_id' => Warehouse::factory()->create()->id,
+            'requested_quantity_kg' => '1000', 'final_quantity_kg' => '1000', 'rate_per_ton' => '98765.43', 'amount' => '98765.43',
+        ]);
+        foreach ([UserRole::WarehouseOfficer, UserRole::TransportOfficer, UserRole::Accountant] as $role) {
+            $page = $this->actingAs(User::factory()->create(['role' => $role]))->get(route('office.transactions'))->assertOk()
+                ->assertSee(route('deals.index').'#deal-ledger', false);
+            if ($role === UserRole::Accountant) {
+                $page->assertSee('98,765.43 USD');
+            } else {
+                $page->assertDontSee('98,765.43 USD')->assertDontSee(__('trades.total_amount'));
+            }
+            if ($role === UserRole::WarehouseOfficer) {
+                $page->assertSee(route('sales.show', $sale), false);
+            }
+        }
+    }
+
     public function test_explicit_draft_requests_are_rejected_across_entry_endpoints(): void
     {
         $this->actingAs(User::factory()->create(['role' => UserRole::GeneralManager]));
@@ -102,6 +129,7 @@ class OwnerDealRegistrationTest extends TestCase
             $response = $this->post(route($route), ['submit_action' => 'draft', 'status' => 'DRAFT']);
             $response->assertRedirect()->assertSessionHasErrors(['submit_action', 'status']);
         }
+        $this->post(route('office.finance.expenses.store'), ['confirm_now' => 0])->assertSessionHasErrors('confirm_now');
         foreach (['deals', 'purchases', 'sales', 'weighing_records', 'financial_transactions', 'money_movements', 'capital_transactions'] as $table) {
             $this->assertDatabaseEmpty($table);
         }

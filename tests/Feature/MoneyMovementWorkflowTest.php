@@ -103,6 +103,9 @@ class MoneyMovementWorkflowTest extends TestCase
             'confirm_now' => 0, 'movement_date' => '2026-09-03', 'amount' => '30', 'reference' => 'Draft receipt',
         ]);
         $this->post(route('money-movements.store'), $historical)->assertSessionHasErrors('confirm_now');
+        $withoutConfirmation = $historical;
+        unset($withoutConfirmation['confirm_now']);
+        $this->post(route('money-movements.store'), $withoutConfirmation)->assertSessionHasErrors('confirm_now');
         $this->assertDatabaseCount('money_movements', 2);
         $this->movement($user, $historical);
         $this->movement($user, ['movement_type' => 'SUPPLIER_PAYMENT', 'counterparty_id' => $supplier->id,

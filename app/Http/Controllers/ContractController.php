@@ -30,7 +30,7 @@ class ContractController extends Controller
 
     public function create(): View
     {
-        return $this->form(new Contract(['start_date' => now(), 'contract_type' => ContractType::General, 'status' => ContractStatus::Draft]));
+        return $this->form(new Contract(['start_date' => now(), 'contract_type' => ContractType::General]));
     }
 
     public function store(ContractRequest $request): RedirectResponse
@@ -72,7 +72,7 @@ class ContractController extends Controller
             'contract' => $contract,
             'partners' => BusinessPartner::query()->where('is_active', true)->orderBy('name')->get(),
             'types' => ContractType::cases(),
-            'statuses' => ContractStatus::cases(),
+            'statuses' => ContractStatus::registrationChoices($contract->status),
             'currencies' => Currency::cases(),
         ]);
     }
