@@ -29,6 +29,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Concerns\CreatesFinanceFixtures;
+use Tests\Fixtures\HistoricalDeal;
 use Tests\TestCase;
 
 class MoneyMovementWorkflowTest extends TestCase
@@ -262,7 +263,7 @@ class MoneyMovementWorkflowTest extends TestCase
     #[TestWith([false], 'two suppliers and one repeated customer')]
     public function test_deal_money_form_defaults_each_direction_only_for_one_distinct_eligible_contact(bool $multipleCustomers): void
     {
-        [$deal, $supplier, $customer, , $accountant] = $this->dealContext('1000', '900', '1200', 'draft');
+        [$deal, $supplier, $customer, , $accountant] = $this->dealContext('1000', '900', '1200', historicalDraft: true);
         $other = $this->party('Second Contact', [PartnerRole::Customer, PartnerRole::Supplier]);
         $service = app(DealService::class);
         $service->addSource($deal, [
@@ -571,18 +572,19 @@ class MoneyMovementWorkflowTest extends TestCase
     }
 
     /** @return array{Deal, BusinessPartner, BusinessPartner, BusinessPartner, User} */
-    private function dealContext(string $quantity, string $purchaseRate, string $saleRate, string $submitAction = 'complete'): array
+    private function dealContext(string $quantity, string $purchaseRate, string $saleRate, bool $historicalDraft = false): array
     {
         $user = User::factory()->create(['role' => UserRole::Accountant]);
         $supplier = $this->party('Supplier A', [PartnerRole::Supplier]);
         $customer = $this->party('Customer B', [PartnerRole::Customer]);
         $saraf = $this->party('Saraf C', [PartnerRole::Saraf]);
-        $deal = app(DealService::class)->create([
+        $data = [
             'deal_date' => '2026-08-30', 'product_id' => Product::factory()->create()->id,
             'supplier_id' => $supplier->id, 'source_quantity_kg' => $quantity, 'source_rate_per_ton' => $purchaseRate,
             'customer_id' => $customer->id, 'final_quantity_kg' => $quantity, 'destination_rate_per_ton' => $saleRate,
-            'submit_action' => $submitAction,
-        ], $user->id);
+        ];
+        $deal = $historicalDraft ? HistoricalDeal::draft($data, $user->id)
+            : app(DealService::class)->create($data + ['submit_action' => 'complete'], $user->id);
 
         return [$deal, $supplier, $customer, $saraf, $user];
     }
