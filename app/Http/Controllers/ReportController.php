@@ -243,7 +243,7 @@ class ReportController extends Controller
             'totalAmount' => $amounts['USD'] ?? '0.00',
             'totalAmounts' => $amounts,
             'currencies' => $records->pluck('currency.value')->concat($dealRows->pluck('currency'))->unique()->implode(' / '),
-            'totalRecords' => $totalsRecords->count() + $dealTotals->count(),
+            'totalRecords' => $totalsRecords->count() + $dealTotals->pluck('deal.id')->unique()->count(),
             'totalsConfirmedOnly' => ! in_array($filters['status'] ?? null, array_column(TransactionStatus::cases(), 'value'), true),
             'filters' => $filters,
             'partners' => BusinessPartner::query()->where('is_active', true)->orderBy('name')->get(),

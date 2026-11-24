@@ -60,7 +60,7 @@ class WarehouseTradeReportTest extends TestCase
         $legacy = Sale::create(['sale_date' => '2026-07-10', 'business_partner_id' => $customer->id, 'currency' => 'AFN', 'status' => 'CONFIRMED', 'created_by' => $user->id]);
         $legacy->items()->create(['product_id' => $product->id, 'warehouse_id' => $north->id, 'final_quantity_kg' => '10', 'rate_per_ton' => '7000', 'amount' => '70']);
         $this->actingAs($user)->get(route('reports.sales', ['warehouse_id' => $north->id]))
-            ->assertOk()->assertViewHas('totalQuantity', '460.000')
+            ->assertOk()->assertViewHas('totalQuantity', '460.000')->assertViewHas('totalRecords', 2)
             ->assertSee('250.25 USD')->assertSee('70.00 AFN')->assertSee('سهم مبلغ فروش ثبت نشده است')
             ->assertDontSee('987.65')->assertDontSee('100.07');
         $this->get(route('reports.sales', ['warehouse_id' => $south->id]))->assertOk()
