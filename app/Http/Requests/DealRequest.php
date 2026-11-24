@@ -70,7 +70,7 @@ class DealRequest extends OperationalEntryRequest
                 $comparison = is_scalar($finalQuantity) ? bccomp((string) $this->input('source_quantity_kg'), (string) $finalQuantity, 3) : null;
                 if ($this->boolean('partial_delivery')) {
                     if ($comparison !== 1) {
-                        $validator->errors()->add('final_quantity_kg', 'برای تحویل قسمی، مقدار تحویل باید مثبت و کمتر از مقدار دریافت باشد.');
+                        $validator->errors()->add('final_quantity_kg', __('deals.errors.partial_quantity'));
                     }
                 } elseif ($comparison !== 0) {
                     $validator->errors()->add('final_quantity_kg', __('deals.errors.quantities_must_balance'));

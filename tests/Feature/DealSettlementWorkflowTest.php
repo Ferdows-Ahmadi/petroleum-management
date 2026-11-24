@@ -24,6 +24,7 @@ use App\Services\PartnerLedgerService;
 use App\Services\StorageClaimService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Tests\Fixtures\HistoricalDeal;
 use Tests\TestCase;
 
 class DealSettlementWorkflowTest extends TestCase
@@ -130,7 +131,7 @@ class DealSettlementWorkflowTest extends TestCase
         app(DealService::class)->complete($inDeal, $user->id);
         app(DealSettlementService::class)->confirm($inDeal, $user->id);
 
-        $outDeal = app(DealService::class)->create(['deal_date' => '2026-08-31', 'product_id' => $product->id, 'submit_action' => 'draft'], $user->id);
+        $outDeal = HistoricalDeal::draft(['deal_date' => '2026-08-31', 'product_id' => $product->id], $user->id);
         app(DealService::class)->addSource($outDeal, ['source_type' => DealSourceType::Storage->value, 'warehouse_id' => $warehouse->id, 'quantity_kg' => '1000']);
         app(DealService::class)->addDestination($outDeal, ['destination_type' => 'CUSTOMER', 'customer_id' => $customer->id, 'final_quantity_kg' => '1000', 'rate_per_ton' => '1400']);
         app(DealService::class)->complete($outDeal, $user->id);
@@ -257,16 +258,15 @@ class DealSettlementWorkflowTest extends TestCase
             ['sale_rate' => '1200', 'expected' => '0.00'],
         ] as $case) {
             $warehouse = Warehouse::factory()->create();
-            $inDeal = app(DealService::class)->create([
+            $inDeal = HistoricalDeal::draft([
                 'deal_date' => '2026-08-30', 'product_id' => $product->id,
                 'supplier_id' => $supplier->id, 'source_quantity_kg' => '1000', 'source_rate_per_ton' => '1200',
-                'submit_action' => 'draft',
             ], $user->id);
             app(DealService::class)->addDestination($inDeal, ['destination_type' => 'STORAGE', 'warehouse_id' => $warehouse->id, 'final_quantity_kg' => '1000']);
             app(DealService::class)->complete($inDeal, $user->id);
             app(DealSettlementService::class)->confirm($inDeal, $user->id);
 
-            $outDeal = app(DealService::class)->create(['deal_date' => '2026-08-31', 'product_id' => $product->id, 'submit_action' => 'draft'], $user->id);
+            $outDeal = HistoricalDeal::draft(['deal_date' => '2026-08-31', 'product_id' => $product->id], $user->id);
             app(DealService::class)->addSource($outDeal, ['source_type' => 'STORAGE', 'warehouse_id' => $warehouse->id, 'quantity_kg' => '1000']);
             app(DealService::class)->addDestination($outDeal, ['destination_type' => 'CUSTOMER', 'customer_id' => $customer->id, 'final_quantity_kg' => '1000', 'rate_per_ton' => $case['sale_rate']]);
             app(DealService::class)->complete($outDeal, $user->id);
@@ -324,12 +324,14 @@ class DealSettlementWorkflowTest extends TestCase
 
     private function directDeal(User $user, Product $product, BusinessPartner $supplier, BusinessPartner $customer, string $sourceQuantity, string $sourceRate, string $destinationQuantity, string $destinationRate, bool $complete = false): Deal
     {
-        return app(DealService::class)->create([
+        $data = [
             'deal_date' => '2026-08-31', 'product_id' => $product->id,
             'supplier_id' => $supplier->id, 'source_quantity_kg' => $sourceQuantity, 'source_rate_per_ton' => $sourceRate,
             'customer_id' => $customer->id, 'final_quantity_kg' => $destinationQuantity, 'destination_rate_per_ton' => $destinationRate,
-            'submit_action' => $complete ? 'complete' : 'draft',
-        ], $user->id);
+        ];
+
+        return $complete ? app(DealService::class)->create($data + ['submit_action' => 'complete'], $user->id)
+            : HistoricalDeal::draft($data, $user->id);
     }
 
     private function party(PartnerRole $role, string $name): BusinessPartner

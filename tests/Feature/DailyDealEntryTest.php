@@ -7,9 +7,9 @@ use App\Enums\UserRole;
 use App\Models\Deal;
 use App\Models\Product;
 use App\Models\User;
-use App\Services\DealService;
 use Dom\HTMLDocument;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Fixtures\HistoricalDeal;
 use Tests\TestCase;
 
 class DailyDealEntryTest extends TestCase
@@ -52,7 +52,7 @@ class DailyDealEntryTest extends TestCase
         $this->get(route('deals.index'))->assertOk()->assertSee($notes);
         $this->post(route('deals.store'), $data + ['submit_action' => 'draft'])->assertSessionHasErrors('submit_action');
         $this->assertDatabaseEmpty('deals');
-        $draft = app(DealService::class)->create(array_replace($data, ['deal_date' => '2026-08-30', 'submit_action' => 'draft']), $user->id);
+        $draft = HistoricalDeal::draft(array_replace($data, ['deal_date' => '2026-08-30']), $user->id);
         $this->assertSame(DealStatus::Draft, $draft->status);
         $this->assertSame($notes, $draft->notes);
         $html = $this->get(route('deals.edit', $draft))->assertOk()->getContent();

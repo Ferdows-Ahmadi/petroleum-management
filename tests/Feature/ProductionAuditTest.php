@@ -29,6 +29,7 @@ use App\Services\PartnerLedgerService;
 use App\Services\StorageCostService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Tests\Fixtures\HistoricalDeal;
 use Tests\TestCase;
 
 class ProductionAuditTest extends TestCase
@@ -105,7 +106,7 @@ class ProductionAuditTest extends TestCase
     {
         [$user, $product, $supplier, $customer] = $this->context();
         $deal = app(DealService::class)->create(array_replace($this->data($product, $supplier, $customer), [
-            'submit_action' => 'draft', 'weighing_mode' => 'TWO_STAGE', 'first_weight_kg' => '15000', 'weighing_at' => now()->toDateTimeString(),
+            'submit_action' => 'register', 'weighing_mode' => 'TWO_STAGE', 'first_weight_kg' => '15000', 'weighing_at' => now()->toDateTimeString(),
         ]), $user->id);
         $this->actingAs($user)->post(route('deals.complete', $deal))->assertSessionHasErrors();
         $this->assertNotSame(DealStatus::Completed, $deal->fresh()->status);
@@ -148,7 +149,7 @@ class ProductionAuditTest extends TestCase
     public function test_simple_draft_can_be_corrected_in_place_and_completed_without_duplicate_lines(): void
     {
         [$user, $product, $supplier, $customer] = $this->context();
-        $deal = app(DealService::class)->create(array_replace($this->data($product, $supplier, $customer), ['submit_action' => 'draft']), $user->id);
+        $deal = HistoricalDeal::draft($this->data($product, $supplier, $customer), $user->id);
         $this->actingAs($user)->get(route('deals.edit', $deal))->assertOk()->assertSee('value="10000.000"', false);
         $this->put(route('deals.update', $deal), array_replace($this->data($product, $supplier, $customer), [
             'deal_date' => '1405/07/11', 'destination_rate_per_ton' => '1200',
@@ -246,7 +247,7 @@ class ProductionAuditTest extends TestCase
         $this->withoutVite();
         [$user] = $this->context();
         $account = FinancialAccount::create(['name' => 'Audit cash', 'account_type' => 'CASH', 'currency' => 'USD', 'opening_balance' => '100', 'opening_balance_date' => now()->toDateString(), 'created_by' => $user->id, 'is_active' => true]);
-        $data = ['financial_account_id' => $account->id, 'transaction_date' => now()->toDateString(), 'expense_category' => 'OFFICE', 'currency' => 'USD', 'amount' => '10', 'operation_key' => (string) Str::uuid()];
+        $data = ['financial_account_id' => $account->id, 'transaction_date' => now()->toDateString(), 'expense_category' => 'OFFICE', 'confirm_now' => 1, 'currency' => 'USD', 'amount' => '10', 'operation_key' => (string) Str::uuid()];
 
         $this->actingAs($user)->post(route('office.finance.expenses.store'), $data)->assertRedirect(route('finance.journal'));
         $saved = route('expenses.show', FinancialTransaction::sole());
@@ -315,13 +316,13 @@ class ProductionAuditTest extends TestCase
     {
         [$user, $product, $supplier, $customer] = $this->context();
         $warehouse = Warehouse::factory()->create();
-        $input = app(DealService::class)->create(['deal_date' => now()->toDateString(), 'product_id' => $product->id, 'submit_action' => 'draft'], $user->id);
+        $input = HistoricalDeal::draft(['deal_date' => now()->toDateString(), 'product_id' => $product->id], $user->id);
         app(DealService::class)->addSource($input, ['source_type' => 'SUPPLIER', 'supplier_id' => $supplier->id, 'quantity_kg' => '1000', 'rate_per_ton' => '1000']);
         app(DealService::class)->addDestination($input, ['destination_type' => 'STORAGE', 'warehouse_id' => $warehouse->id, 'final_quantity_kg' => '1000']);
         app(DealService::class)->complete($input, $user->id);
         app(DealSettlementService::class)->confirm($input, $user->id);
 
-        $out = app(DealService::class)->create(['deal_date' => now()->toDateString(), 'product_id' => $product->id, 'submit_action' => 'draft'], $user->id);
+        $out = HistoricalDeal::draft(['deal_date' => now()->toDateString(), 'product_id' => $product->id], $user->id);
         app(DealService::class)->addSource($out, ['source_type' => 'SUPPLIER', 'supplier_id' => $supplier->id, 'quantity_kg' => '1000', 'rate_per_ton' => '1200']);
         app(DealService::class)->addSource($out, ['source_type' => 'STORAGE', 'warehouse_id' => $warehouse->id, 'quantity_kg' => '1000']);
         app(DealService::class)->addDestination($out, ['destination_type' => 'CUSTOMER', 'customer_id' => $customer->id, 'final_quantity_kg' => '2000', 'rate_per_ton' => '1400']);
@@ -340,9 +341,9 @@ class ProductionAuditTest extends TestCase
     public function test_split_allocations_conserve_source_cents_instead_of_rounding_each_cost_up(): void
     {
         [$user, $product, $supplier, $customer] = $this->context();
-        $deal = app(DealService::class)->create(array_replace($this->data($product, $supplier, $customer), [
+        $deal = HistoricalDeal::draft(array_replace($this->data($product, $supplier, $customer), [
             'source_quantity_kg' => '0.003', 'source_rate_per_ton' => '5000', 'final_quantity_kg' => '0.001',
-            'destination_rate_per_ton' => '10000', 'submit_action' => 'draft',
+            'destination_rate_per_ton' => '10000',
         ]), $user->id);
         for ($i = 0; $i < 2; $i++) {
             app(DealService::class)->addDestination($deal, ['destination_type' => 'CUSTOMER', 'customer_id' => $customer->id, 'final_quantity_kg' => '0.001', 'rate_per_ton' => '10000']);
@@ -395,7 +396,7 @@ class ProductionAuditTest extends TestCase
     public function test_draft_split_line_mistakes_can_be_removed_without_editing_completed_history(): void
     {
         [$user, $product, $supplier, $customer] = $this->context();
-        $deal = app(DealService::class)->create(array_replace($this->data($product, $supplier, $customer), ['submit_action' => 'draft']), $user->id);
+        $deal = HistoricalDeal::draft($this->data($product, $supplier, $customer), $user->id);
         $extra = app(DealService::class)->addSource($deal, ['source_type' => 'SUPPLIER', 'supplier_id' => $supplier->id, 'quantity_kg' => '10', 'rate_per_ton' => '1000']);
         $other = Deal::create(['deal_date' => now()->toDateString(), 'status' => 'DRAFT']);
         $this->actingAs($user)->delete(route('deals.sources.destroy', [$other, $extra]))->assertNotFound();
@@ -445,7 +446,7 @@ class ProductionAuditTest extends TestCase
     {
         [$user, $product, $supplier, $customer] = $this->context();
         $deal = app(DealService::class)->create(array_replace($this->data($product, $supplier, $customer), [
-            'submit_action' => 'draft', 'weighing_mode' => 'TWO_STAGE', 'first_weight_kg' => '15000', 'weighing_at' => now()->toDateTimeString(),
+            'submit_action' => 'register', 'weighing_mode' => 'TWO_STAGE', 'first_weight_kg' => '15000', 'weighing_at' => now()->toDateTimeString(),
         ]), $user->id);
         $this->actingAs($user)->from(route('deals.show', $deal))->post(route('deals.weighing.complete', $deal), ['second_weight_kg' => '16000'])
             ->assertRedirect(route('deals.show', $deal))->assertSessionHasErrors('first_weight_kg')->assertSessionHasInput('second_weight_kg', '16000');
