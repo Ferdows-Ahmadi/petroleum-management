@@ -33,3 +33,20 @@ npm run build
 ```
 
 For the Edge checks, prepare the fictional demo and testing-only credentials described in [the browser harness](../../tests/browser/payment-counterparty.cjs). Run that harness and [the print regression](../../tests/browser/report-print.cjs) against the same loopback URL. For operator instructions see the [Dari checklist and screenshots](README.md).
+
+
+## PR review follow-up on legacy submissions
+
+We replayed the same complete HTTP requests on the reviewed commit `4f5a6a8` and the revised branch, using fictional customers, suppliers, stock and financial accounts. Each request contained a fresh operation key and valid business fields. None contained a draft-saving parameter.
+
+| Request | Observed on the reviewed commit | Observed after the fix |
+|---|---|---|
+| Legacy purchase | Editable `DRAFT` | Read-only submission awaiting approval. No stock or payable is posted at submission. |
+| Legacy sale | Editable `DRAFT` | Awaits weighing. Finalizing all lines makes it eligible for approval. The sale posts only on the authorized confirm action. A requested weight can remain unknown until weighing. |
+| Legacy expense | Editable `DRAFT` | Awaits explicit financial approval. No account balance changes on submission. |
+| Capital contribution | Editable `DRAFT` | Awaits explicit financial approval. Neither the capital position nor cash balance changes on submission. |
+| Journal expense without confirmation intent | Created a confirmed expense | Validation rejects the request. No financial transaction is created. |
+
+The normal purchase and sale confirmation services continue to post stock using the existing financial and inventory rules. Repeated approvals post once. A withdrawn pending financial submission remains recorded and cannot be approved. Historical draft records retain their existing authorized handling. New daily deals require a supported registration action in the service itself. Real unfinished weighing and partial delivery remain available.
+
+Final regressions passed with 399 MySQL tests (2,868 assertions), 394 SQLite tests (2,827 assertions, 5 MySQL-only skips), and 15 JavaScript tests. The Vite production build also passed. The role, replay, withdrawal, historical-draft and multi-line weighing tests exercise the normal routes with complete submissions. No migration was needed for these status values. The [Dari rollback instructions](../windows-upgrade-fa.md) explain the compatibility boundary after new submissions have been written.
