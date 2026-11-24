@@ -42,7 +42,7 @@ try {
         'docs/COMPANY_HANDOFF_VERIFICATION_2026_10_03.md','docs/SIMPLIFIED_OPERATIONS_VERIFICATION_2026_10_03.md','docs/contact-import.md','handoff'
     )
     # Earlier releases may be rehearsed before these launchers and the checklist were introduced.
-    foreach ($path in @('STOP_SYSTEM.bat','RESTART_SYSTEM.bat','docs/first-supervised-installation-fa.md')) {
+    foreach ($path in @('STOP_SYSTEM.bat','RESTART_SYSTEM.bat','docs/first-supervised-installation-fa.md','scripts/upgrade-windows.ps1','scripts/upgrade-database-identity.php','scripts/upgrade-verification.ps1','docs/windows-upgrade-fa.md')) {
         if (& git -C $projectRoot ls-tree --name-only $revision -- $path) { $inputs += $path }
     }
     $sourceArchive = Join-Path $stage 'source.zip'
