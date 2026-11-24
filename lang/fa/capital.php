@@ -27,7 +27,7 @@ return [
     'partner_created' => 'شریک سرمایه ایجاد شد.',
     'partner_updated' => 'شریک سرمایه به‌روزرسانی شد.',
     'partner_deleted' => 'شریک سرمایه حذف شد.',
-    'transaction_created' => 'معامله سرمایه به حالت پیش‌نویس ایجاد شد.',
+    'transaction_created' => 'معامله سرمایه برای تأیید ثبت شد.',
     'transaction_updated' => 'معامله سرمایه به‌روزرسانی شد.',
     'transaction_confirmed' => 'معامله سرمایه تأیید شد.',
     'already_confirmed' => 'این معامله قبلاً تأیید شده است.',

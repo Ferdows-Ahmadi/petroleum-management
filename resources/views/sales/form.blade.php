@@ -11,7 +11,7 @@
     @endphp
     <x-page-header :title="$sale->exists ? __('trades.sale.edit') : __('trades.sale.create')" :subtitle="__('trades.sale.subtitle')" />
 
-    <div class="notice"><i class="bi bi-info-circle"></i><div><strong>{{ __('trades.requested_quantity_kg') }}</strong>{{ __('trades.weighing_quantity_note') }}</div></div>
+    <div class="notice"><i class="bi bi-info-circle"></i><div><strong>{{ __('trades.requested_quantity_kg') }}</strong> <span>{{ __('trades.weighing_quantity_note') }}</span></div></div>
 
     <form method="POST" action="{{ $sale->exists ? route('sales.update', $sale) : route('sales.store') }}" data-trade-form>
         @csrf
@@ -51,7 +51,7 @@
                 <section class="cardx card-pad sticky-summary"><div class="card-title">{{ __('trades.total_amount') }}</div><div class="calc-total">{{ __('trades.pending_weighing') }}</div></section>
             </aside>
         </div>
-        <div class="form-actions"><button class="btnx btn-primaryx" type="submit"><i class="bi bi-check2"></i>{{ __('trades.save_draft') }}</button><a class="btnx btn-lightx" href="{{ $sale->exists ? route('sales.show', $sale) : route('sales.index') }}">{{ __('common.cancel') }}</a></div>
+        <div class="form-actions"><button class="btnx btn-primaryx" type="submit"><i class="bi bi-check2"></i>ثبت برای وزن‌کشی</button><a class="btnx btn-lightx" href="{{ $sale->exists ? route('sales.show', $sale) : route('sales.index') }}">{{ __('common.cancel') }}</a></div>
 
         <template data-item-template>
             <div class="trade-item" data-trade-item>

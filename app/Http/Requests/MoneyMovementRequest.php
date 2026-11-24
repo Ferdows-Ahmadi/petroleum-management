@@ -5,10 +5,9 @@ namespace App\Http\Requests;
 use App\Enums\Currency;
 use App\Enums\MoneyMovementType;
 use App\Http\Requests\Concerns\ConvertsJalaliDates;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class MoneyMovementRequest extends FormRequest
+class MoneyMovementRequest extends OperationalEntryRequest
 {
     use ConvertsJalaliDates;
 
@@ -50,7 +49,7 @@ class MoneyMovementRequest extends FormRequest
             'exchange_rate_to_usd' => ['nullable', 'required_if:currency,AFN', 'numeric', 'gt:0', 'regex:/^(?:0|[1-9]\d{0,11})(?:\.\d{1,6})?$/'],
             'reference' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:3000'],
-            'confirm_now' => ['nullable', 'boolean'],
+            'confirm_now' => $this->isMethod('POST') ? ['required', 'accepted'] : ['nullable', 'boolean'],
             'return_to' => ['nullable', Rule::in(['accounts', 'deal', 'journal'])],
         ];
     }

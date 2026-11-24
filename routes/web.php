@@ -203,6 +203,7 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function (): void {
         UserRole::PurchaseSalesOfficer->value,
     ]))->group(function (): void {
         Route::post('/deals', [DealController::class, 'store'])->name('deals.store')->middleware('once');
+        Route::post('/deals/{deal}/notes', [DealController::class, 'addNote'])->name('deals.notes.store')->middleware('once');
         Route::get('/deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
         Route::put('/deals/{deal}', [DealController::class, 'update'])->name('deals.update');
         Route::post('/deals/{deal}/sources', [DealSettlementController::class, 'storeSource'])->name('deals.sources.store');

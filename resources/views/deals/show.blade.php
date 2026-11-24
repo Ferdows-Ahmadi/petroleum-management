@@ -16,8 +16,10 @@
     @endphp
     <x-page-header :title="__('deals.details')" :subtitle="$deal->reference_code">@if($canEditLines && $deal->sources->count() === 1 && $deal->destinations->count() === 1 && !$weighing?->finalized_at)<a class="btnx btn-primaryx" href="{{ route('deals.edit', $deal) }}">{{ __('common.edit') }}</a>@endif <a class="btnx btn-lightx" href="{{ route('deals.index') }}"><i class="bi bi-arrow-right"></i>{{ __('common.back') }}</a></x-page-header>
 
-    @if($deal->status === \App\Enums\DealStatus::Completed)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('deals.status.COMPLETED') }}</strong>ویرایش اطلاعات اصلی معامله پس از تکمیل بسته است. {{ __('deals.direct_notice') }}</div></div>
+    @if($deal->status === \App\Enums\DealStatus::Completed)<div class="notice subtle-notice"><i class="bi bi-shield-check"></i><div><strong>{{ __('deals.status.COMPLETED') }}</strong><p>اطلاعات اصلی معامله ثبت نهایی شده است. برای توضیح تازه، یادداشت بیفزایید.</p></div></div>
     @elseif($weighing?->status === \App\Enums\WeighingStatus::Finalized)<div class="notice subtle-notice">وزن نهایی ثبت شده است و فورم اصلی معامله قابل ویرایش نیست.</div>@endif
+
+    @include('deals._notes')
 
     <div class="detail-grid">
         <div class="stack">
@@ -39,7 +41,6 @@
                     <div class="info-item"><div class="info-label">{{ __('deals.delivery_date') }}</div><div class="info-value">{{ $deal->requested_delivery_date ? app(\App\Support\JalaliDate::class)->format($deal->requested_delivery_date) : __('common.not_available') }}</div></div>
                     <div class="info-item"><div class="info-label">{{ __('deals.requested_quantity') }}</div><div class="info-value ltr-value">{{ $deal->requested_quantity_kg ? app(\App\Support\NumberFormat::class)->weight($deal->requested_quantity_kg).' kg' : __('common.not_available') }}</div></div>
                     <div class="info-item"><div class="info-label">{{ __('deals.created_by') }}</div><div class="info-value">{{ $deal->creator?->name ?: __('common.not_available') }}</div></div>
-                    <div class="info-item"><div class="info-label">{{ __('common.notes') }}</div><div class="info-value deal-note-text" dir="auto">{{ filled($deal->notes) ? $deal->notes : __('common.not_available') }}</div></div>
                 </div>
             </section>
 

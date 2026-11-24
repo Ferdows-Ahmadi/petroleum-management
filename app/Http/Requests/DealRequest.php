@@ -5,11 +5,10 @@ namespace App\Http\Requests;
 use App\Enums\WeighingMode;
 use App\Http\Requests\Concerns\ConvertsJalaliDates;
 use App\Services\PetroleumAmountCalculator;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class DealRequest extends FormRequest
+class DealRequest extends OperationalEntryRequest
 {
     use ConvertsJalaliDates;
 
@@ -55,7 +54,12 @@ class DealRequest extends FormRequest
                 && bccomp((string) $this->input('first_weight_kg'), (string) $this->input('second_weight_kg'), 3) <= 0) {
                 $validator->errors()->add('first_weight_kg', __('weighings.errors.first_must_exceed_second'));
             }
-            if ($this->input('submit_action') === 'complete') {
+            $waitingForWeight = $this->input('submit_action') === 'register' && $mode === WeighingMode::TwoStage->value
+                && $this->filled('first_weight_kg') && ! $this->filled('second_weight_kg');
+            if ($waitingForWeight && $this->boolean('partial_delivery')) {
+                $validator->errors()->add('partial_delivery', 'ابتدا وزن اول را ثبت کنید. تحویل قسمی را هنگام ثبت مقدار نهایی انتخاب کنید.');
+            }
+            if (! $waitingForWeight) {
                 $finalQuantity = $this->input('final_quantity_kg');
                 if ($mode === WeighingMode::DirectNet->value && $this->filled('net_weight_kg')) {
                     $finalQuantity = $this->input('net_weight_kg');
@@ -63,7 +67,12 @@ class DealRequest extends FormRequest
                 if ($mode === WeighingMode::TwoStage->value && $this->filled('first_weight_kg') && $this->filled('second_weight_kg')) {
                     $finalQuantity = bcsub((string) $this->input('first_weight_kg'), (string) $this->input('second_weight_kg'), 3);
                 }
-                if (! is_scalar($finalQuantity) || bccomp((string) $this->input('source_quantity_kg'), (string) $finalQuantity, 3) !== 0) {
+                $comparison = is_scalar($finalQuantity) ? bccomp((string) $this->input('source_quantity_kg'), (string) $finalQuantity, 3) : null;
+                if ($this->boolean('partial_delivery')) {
+                    if ($comparison !== 1) {
+                        $validator->errors()->add('final_quantity_kg', 'برای تحویل قسمی، مقدار تحویل باید مثبت و کمتر از مقدار دریافت باشد.');
+                    }
+                } elseif ($comparison !== 0) {
                     $validator->errors()->add('final_quantity_kg', __('deals.errors.quantities_must_balance'));
                 }
             }
@@ -82,28 +91,25 @@ class DealRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        $completing = $this->input('submit_action') === 'complete';
-        $required = $completing ? ['required'] : ['nullable'];
-
         return [
             'deal_date' => ['required', 'date_format:Y-m-d'],
             'requested_delivery_date' => ['nullable', 'date_format:Y-m-d'],
-            'product_id' => [...$required, 'integer', Rule::exists('products', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at'))],
+            'product_id' => ['required', 'integer', Rule::exists('products', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at'))],
             'requested_quantity_kg' => ['nullable', 'numeric', 'gt:0', 'regex:/^(?:0|[1-9]\d{0,14})(?:\.\d{1,3})?$/'],
             'notes' => ['nullable', 'string', 'max:3000'],
             'source_type' => ['required', Rule::in(['SUPPLIER', 'STORAGE'])],
             'source_warehouse_id' => ['exclude_unless:source_type,STORAGE', 'required', 'integer', Rule::exists('warehouses', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at'))],
             'supplier_id' => ['exclude_if:source_type,STORAGE', 'nullable', 'integer', Rule::exists('business_partners', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at'))],
-            'supplier_name' => ['exclude_if:source_type,STORAGE', $completing ? 'required_without:supplier_id' : 'nullable', 'string', 'max:150'],
-            'source_quantity_kg' => [...$required, 'numeric', 'gt:0', 'regex:/^(?:0|[1-9]\d{0,14})(?:\.\d{1,3})?$/'],
-            'source_rate_per_ton' => ['exclude_if:source_type,STORAGE', ...$required, 'numeric', 'gte:0', 'regex:/^(?:0|[1-9]\d{0,13})(?:\.\d{1,4})?$/'],
+            'supplier_name' => ['exclude_if:source_type,STORAGE', 'required_without:supplier_id', 'string', 'max:150'],
+            'source_quantity_kg' => ['required', 'numeric', 'gt:0', 'regex:/^(?:0|[1-9]\d{0,14})(?:\.\d{1,3})?$/'],
+            'source_rate_per_ton' => ['exclude_if:source_type,STORAGE', 'required', 'numeric', 'gte:0', 'regex:/^(?:0|[1-9]\d{0,13})(?:\.\d{1,4})?$/'],
             'source_reference_number' => ['nullable', 'string', 'max:100'],
             'destination_type' => ['required', Rule::in(['CUSTOMER', 'STORAGE'])],
             'destination_warehouse_id' => ['exclude_unless:destination_type,STORAGE', 'required', 'integer', Rule::exists('warehouses', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at'))],
             'customer_id' => ['exclude_if:destination_type,STORAGE', 'nullable', 'integer', Rule::exists('business_partners', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at'))],
-            'customer_name' => ['exclude_if:destination_type,STORAGE', $completing ? 'required_without:customer_id' : 'nullable', 'string', 'max:150'],
+            'customer_name' => ['exclude_if:destination_type,STORAGE', 'required_without:customer_id', 'string', 'max:150'],
             'final_quantity_kg' => ['nullable', 'numeric', 'gt:0', 'regex:/^(?:0|[1-9]\d{0,14})(?:\.\d{1,3})?$/'],
-            'destination_rate_per_ton' => ['exclude_if:destination_type,STORAGE', ...$required, 'numeric', 'gte:0', 'regex:/^(?:0|[1-9]\d{0,13})(?:\.\d{1,4})?$/'],
+            'destination_rate_per_ton' => ['exclude_if:destination_type,STORAGE', 'required', 'numeric', 'gte:0', 'regex:/^(?:0|[1-9]\d{0,13})(?:\.\d{1,4})?$/'],
             'destination_reference_number' => ['nullable', 'string', 'max:100'],
             'weighing_mode' => ['nullable', Rule::enum(WeighingMode::class)],
             'weighing_at' => ['nullable', 'required_with:first_weight_kg,net_weight_kg,ticket_image', 'date'],
@@ -115,7 +121,8 @@ class DealRequest extends FormRequest
             'vehicle_number' => ['nullable', 'string', 'max:100'],
             'driver_name' => ['nullable', 'string', 'max:150'],
             'ticket_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
-            'submit_action' => ['required', Rule::in(['draft', 'complete'])],
+            'partial_delivery' => ['sometimes', 'accepted', 'prohibited_unless:submit_action,register'],
+            'submit_action' => ['required', Rule::in(['register', 'complete'])],
         ];
     }
 }

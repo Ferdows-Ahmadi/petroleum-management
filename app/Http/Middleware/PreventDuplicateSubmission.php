@@ -84,6 +84,7 @@ class PreventDuplicateSubmission
     private function freshForm(Request $request, ?Request $contextSource = null): string
     {
         return match ($request->route()?->getName()) {
+            'deals.notes.store' => route('deals.show', $request->route('deal')).'#deal-notes',
             'deals.store' => route('deals.index').'#new-deal',
             'expenses.store' => route('expenses.create'),
             'office.finance.expenses.store' => route('finance.journal', ['entry' => 'expense']).'#expense-entry',
@@ -145,7 +146,7 @@ class PreventDuplicateSubmission
 
         // A key may have been reused across forms or after a user's role changed.
         $allowed = match ($request->route()?->getName()) {
-            'deals.store', null => ['deals.show'],
+            'deals.notes.store', 'deals.store', null => ['deals.show'],
             'expenses.store', 'office.finance.expenses.store' => ['expenses.show', 'finance.journal'],
             'money-movements.store', 'office.accounts.money.store' => ['money-movements.show', 'deals.show', 'office.accounts', 'finance.journal'],
             default => [],

@@ -113,11 +113,22 @@ class DealController extends Controller
         return redirect()->route('deals.show', $deal)->with('success', $deal->status === DealStatus::Completed ? __('deals.completed') : __('deals.saved'));
     }
 
+    public function addNote(Request $request, Deal $deal): RedirectResponse
+    {
+        $data = $request->validate([
+            'note_body' => ['bail', 'required', 'string', 'max:3000', 'regex:/[^\p{Z}\p{C}\s]/u'],
+            'operation_key' => ['required', 'uuid'],
+        ], ['note_body.regex' => 'متن یادداشت را وارد کنید.']);
+        $deal->additionalNotes()->create(['body' => $data['note_body'], 'created_by' => $request->user()->id]);
+
+        return redirect(route('deals.show', $deal).'#deal-notes')->with('success', 'یادداشت ثبت شد.');
+    }
+
     public function show(Request $request, Deal $deal, DealMoneySummaryService $moneySummary, DealSettlementService $settlements): View
     {
         $deal->load([
             'product', 'sources.supplier', 'sources.warehouse', 'destinations.customer', 'destinations.warehouse',
-            'destinations.weighingRecord.creator', 'destinations.weighingRecord.finalizer', 'creator', 'completer',
+            'additionalNotes.author', 'destinations.weighingRecord.creator', 'destinations.weighingRecord.finalizer', 'creator', 'completer',
             'moneyMovements.counterparty', 'moneyMovements.saraf', 'moneyMovements.account',
             'allocations.source.supplier', 'allocations.source.warehouse', 'allocations.destination.customer', 'allocations.destination.warehouse',
             'quantityAdjustments.source', 'expenses.payee', 'settlements.creator', 'settlements.confirmer',

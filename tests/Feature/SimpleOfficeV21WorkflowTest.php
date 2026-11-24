@@ -164,7 +164,7 @@ class SimpleOfficeV21WorkflowTest extends TestCase
             'weighing_at' => '1405/05/19 10:00',
             'net_weight_kg' => '1000',
             'first_weight_kg' => '2000',
-            'submit_action' => 'draft',
+            'submit_action' => 'await_weighing',
         ])->assertSessionHasErrors('first_weight_kg');
         $this->assertDatabaseCount('sales', 0);
     }
@@ -190,7 +190,7 @@ class SimpleOfficeV21WorkflowTest extends TestCase
             'weighing_at' => '1405/05/19 10:00',
             'first_weight_kg' => '34475',
             'ticket_image' => $this->fakePng('first.png'),
-            'submit_action' => 'draft',
+            'submit_action' => 'await_weighing',
         ])->assertRedirect();
 
         $sale = Sale::with('items.weighingRecord')->firstOrFail();

@@ -31,6 +31,11 @@ class Deal extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function additionalNotes(): HasMany
+    {
+        return $this->hasMany(DealNote::class)->oldest()->orderBy('id');
+    }
+
     /** @return HasMany<DealSource, $this> */
     public function sources(): HasMany
     {

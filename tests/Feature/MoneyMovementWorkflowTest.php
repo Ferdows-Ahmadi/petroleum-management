@@ -99,9 +99,12 @@ class MoneyMovementWorkflowTest extends TestCase
             $this->post(route('money-movements.store'), $post)->assertSessionHasNoErrors();
             $this->post(route('money-movements.store'), $post)->assertSessionHasNoErrors();
         }
-        $this->post(route('money-movements.store'), array_replace($receipt, [
+        $historical = array_replace($receipt, [
             'confirm_now' => 0, 'movement_date' => '2026-09-03', 'amount' => '30', 'reference' => 'Draft receipt',
-        ]))->assertSessionHasNoErrors();
+        ]);
+        $this->post(route('money-movements.store'), $historical)->assertSessionHasErrors('confirm_now');
+        $this->assertDatabaseCount('money_movements', 2);
+        $this->movement($user, $historical);
         $this->movement($user, ['movement_type' => 'SUPPLIER_PAYMENT', 'counterparty_id' => $supplier->id,
             'saraf_id' => $saraf->id, 'deal_id' => $deal->id, 'amount' => '50'], true);
 
@@ -357,7 +360,7 @@ class MoneyMovementWorkflowTest extends TestCase
         $this->post(route('money-movements.store'), [
             'movement_type' => 'CUSTOMER_RECEIPT', 'movement_date' => '2026-08-30', 'amount' => '20',
             'money_route' => 'saraf', 'saraf_id' => $saraf->id, 'counterparty_id' => $customer->id,
-            'currency' => 'USD', 'deal_id' => '', 'return_to' => 'deal',
+            'currency' => 'USD', 'deal_id' => '', 'return_to' => 'deal', 'confirm_now' => 1,
         ])->assertRedirect(route('money-movements.show', MoneyMovement::sole()));
         $this->assertNull(MoneyMovement::sole()->deal_id);
 

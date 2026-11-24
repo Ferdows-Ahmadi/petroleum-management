@@ -36,7 +36,7 @@ return [
     'save_draft' => 'ذخیره پیش‌نویس',
     'confirm' => 'تأیید',
     'confirm_question' => 'پس از تأیید، این حرکت مالی قابل ویرایش یا حذف نیست. ادامه می‌دهید؟',
-    'transaction_created' => 'پیش‌نویس حرکت مالی ثبت شد.',
+    'transaction_created' => 'سند مالی برای تأیید ثبت شد.',
     'transaction_updated' => 'پیش‌نویس حرکت مالی به‌روزرسانی شد.',
     'transaction_deleted' => 'پیش‌نویس حرکت مالی حذف شد.',
     'transaction_confirmed' => 'حرکت مالی تأیید شد و اکنون در بیلانس‌ها محاسبه می‌شود.',

@@ -36,7 +36,7 @@
             @if($canRecordFinance)
                 <details class="cardx card-pad office-optional"><summary>{{ __('office.payment_optional') }}</summary><div class="office-form-grid compact-grid"><div class="field"><label>{{ __('office.paid_amount') }}</label><input class="control ltr-value" name="payment_amount" value="{{ old('payment_amount') }}" inputmode="decimal"></div><div class="field"><label>{{ __('finance.financial_account') }}</label><select class="control" name="financial_account_id"><option value="">—</option>@foreach($financialAccounts as $account)<option value="{{ $account->id }}">{{ $account->name }} · {{ $account->currency->value }}</option>@endforeach</select></div><div class="field"><label>{{ __('finance.exchange_rate') }} (AFN/USD)</label><input class="control ltr-value" name="exchange_rate_to_usd" value="{{ old('exchange_rate_to_usd') }}" inputmode="decimal"></div></div></details>
             @endif
-            <div class="form-actions"><button class="btnx btn-primaryx" name="submit_action" value="confirm"><i class="bi bi-check2-circle"></i>{{ __('office.confirm_now') }}</button><button class="btnx btn-lightx" name="submit_action" value="draft"><i class="bi bi-clock"></i>{{ __('office.save_pending') }}</button></div>
+            <div class="form-actions"><button class="btnx btn-primaryx" name="submit_action" value="confirm"><i class="bi bi-check2-circle"></i>{{ __('office.confirm_now') }}</button></div>
         </form>
 
         <section class="cardx card-pad office-history">
@@ -77,7 +77,7 @@
                 @if($canRecordFinance)
                     <details class="cardx card-pad office-optional"><summary>{{ __('office.receipt_optional') }}</summary><div class="office-form-grid compact-grid"><div class="field"><label>{{ __('office.received_amount') }}</label><input class="control ltr-value" name="payment_amount" value="{{ old('payment_amount') }}" inputmode="decimal"></div><div class="field"><label>{{ __('finance.financial_account') }}</label><select class="control" name="financial_account_id"><option value="">—</option>@foreach($financialAccounts as $account)<option value="{{ $account->id }}">{{ $account->name }} · {{ $account->currency->value }}</option>@endforeach</select></div><div class="field"><label>{{ __('finance.exchange_rate') }} (AFN/USD)</label><input class="control ltr-value" name="exchange_rate_to_usd" value="{{ old('exchange_rate_to_usd') }}" inputmode="decimal"></div></div></details>
                 @endif
-                <div class="form-actions">@if($canWeigh)<button class="btnx btn-primaryx" name="submit_action" value="confirm"><i class="bi bi-check2-circle"></i>{{ __('office.confirm_now') }}</button>@endif<button class="btnx btn-lightx" name="submit_action" value="draft"><i class="bi bi-clock"></i>{{ __('office.save_pending') }}</button></div>
+                <div class="form-actions">@if($canWeigh)<button class="btnx btn-primaryx" name="submit_action" value="confirm"><i class="bi bi-check2-circle"></i>{{ __('office.confirm_now') }}</button>@endif<button class="btnx btn-lightx" name="submit_action" value="await_weighing">ثبت برای وزن‌کشی</button></div>
             </form>
         @endif
 

@@ -12,6 +12,7 @@ use App\Models\Warehouse;
 use App\Services\DealSettlementService;
 use App\Services\InventoryBalanceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Tests\TestCase;
 
 class CompanyOnboardingTest extends TestCase
@@ -77,14 +78,15 @@ class CompanyOnboardingTest extends TestCase
             'deal_date' => '1405/07/11', 'product_id' => $product->id,
             'supplier_name' => 'عرضه‌کننده ذخیره', 'source_quantity_kg' => '2000',
             'source_rate_per_ton' => '1000', 'destination_type' => 'STORAGE',
-            'destination_warehouse_id' => $warehouse->id, 'submit_action' => 'draft',
+            'destination_warehouse_id' => $warehouse->id, 'submit_action' => 'register',
+            'partial_delivery' => '1', 'final_quantity_kg' => '1000',
         ];
         $this->actingAs($manager)->post(route('deals.store'), $data)->assertSessionHasNoErrors();
         $purchase = Deal::query()->firstOrFail();
         $sourceId = $purchase->sources()->firstOrFail()->id;
         $destinationId = $purchase->destinations()->firstOrFail()->id;
         $this->get(route('deals.edit', $purchase))->assertOk()->assertSee('ذخیره دریافت');
-        $this->put(route('deals.update', $purchase), array_replace($data, ['submit_action' => 'complete']))
+        $this->put(route('deals.update', $purchase), array_replace(Arr::except($data, ['partial_delivery']), ['submit_action' => 'complete', 'final_quantity_kg' => '2000']))
             ->assertSessionHasNoErrors()->assertRedirect(route('deals.show', $purchase));
         $this->assertDatabaseCount('deals', 1);
         $this->assertDatabaseCount('business_partners', 1);

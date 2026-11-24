@@ -3,10 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Enums\DealQuantityAdjustmentType;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class DealQuantityAdjustmentRequest extends FormRequest
+class DealQuantityAdjustmentRequest extends OperationalEntryRequest
 {
     public function authorize(): bool
     {

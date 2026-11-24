@@ -5,7 +5,7 @@
 @section('content')
     @php($isExpense = $mode === 'expenses')
     <x-page-header :title="$isExpense ? __('finance.create_expense') : __('finance.create_payment')" :subtitle="$isExpense ? __('finance.expenses_subtitle') : __('finance.payments_subtitle')" />
-    <div class="notice"><i class="bi bi-info-circle"></i><div><strong>{{ __('finance.amount_usd') }}</strong>{{ __('finance.exchange_rate_help') }}</div></div>
+    <div class="notice"><i class="bi bi-info-circle"></i><div><strong>{{ __('finance.amount_usd') }}</strong> <span>{{ __('finance.exchange_rate_help') }}</span></div></div>
     <form method="POST" action="{{ $financialTransaction->exists ? route($mode.'.update', $financialTransaction) : route($mode.'.store') }}">
         @csrf @if($financialTransaction->exists)@method('PUT')@elseif($isExpense)<x-operation-key />@endif
         <section class="cardx card-pad"><div class="form-grid">
@@ -20,6 +20,6 @@
             <div class="field"><label for="reference">{{ __('common.reference') }}</label><input id="reference" class="control" name="reference" value="{{ old('reference', $financialTransaction->reference) }}"><x-field-error name="reference" /></div>
             <div class="field span-2"><label for="description">{{ __('finance.description') }}</label><textarea id="description" class="control textarea" name="description">{{ old('description', $financialTransaction->description) }}</textarea><x-field-error name="description" /></div>
         </div></section>
-        <div class="form-actions"><button class="btnx btn-primaryx" type="submit"><i class="bi bi-check2"></i>{{ __('finance.save_draft') }}</button><a class="btnx btn-lightx" href="{{ route($mode.'.index') }}">{{ __('common.cancel') }}</a></div>
+        <div class="form-actions"><button class="btnx btn-primaryx" type="submit"><i class="bi bi-check2"></i>ثبت برای تأیید</button><a class="btnx btn-lightx" href="{{ route($mode.'.index') }}">{{ __('common.cancel') }}</a></div>
     </form>
 @endsection

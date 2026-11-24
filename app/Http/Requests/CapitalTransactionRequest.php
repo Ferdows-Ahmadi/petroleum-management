@@ -5,10 +5,9 @@ namespace App\Http\Requests;
 use App\Enums\CapitalAdjustmentDirection;
 use App\Enums\CapitalTransactionType;
 use App\Http\Requests\Concerns\ConvertsJalaliDates;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class CapitalTransactionRequest extends FormRequest
+class CapitalTransactionRequest extends OperationalEntryRequest
 {
     use ConvertsJalaliDates;
 

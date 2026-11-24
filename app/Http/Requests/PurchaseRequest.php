@@ -6,11 +6,10 @@ use App\Enums\Currency;
 use App\Enums\PartnerRole;
 use App\Http\Requests\Concerns\ConvertsJalaliDates;
 use App\Http\Requests\Concerns\ValidatesPetroleumAmounts;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class PurchaseRequest extends FormRequest
+class PurchaseRequest extends OperationalEntryRequest
 {
     use ConvertsJalaliDates, ValidatesPetroleumAmounts;
 

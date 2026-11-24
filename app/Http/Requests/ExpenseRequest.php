@@ -5,10 +5,9 @@ namespace App\Http\Requests;
 use App\Enums\Currency;
 use App\Enums\ExpenseCategory;
 use App\Http\Requests\Concerns\ConvertsJalaliDates;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class ExpenseRequest extends FormRequest
+class ExpenseRequest extends OperationalEntryRequest
 {
     use ConvertsJalaliDates;
 

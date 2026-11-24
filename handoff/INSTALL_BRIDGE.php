@@ -133,6 +133,8 @@ try {
     $run(['key:generate', '--force', '--no-interaction']);
     $phase = 'migrations';
     $run(['migrate', '--force', '--no-interaction']);
+    $phase = 'default_products';
+    $run(['app:initialize-products', '--no-interaction']);
     $phase = 'first_manager';
     // Use the existing validated command with a private in-memory input stream.
     // This avoids Windows console code-page/hiddeninput handling in a detached installer.

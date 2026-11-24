@@ -110,7 +110,7 @@ class SimpleOfficeWorkflowTest extends TestCase
             'warehouse_id' => $warehouse->id,
             'requested_quantity_kg' => '1000',
             'rate_per_ton' => '1200',
-            'submit_action' => 'draft',
+            'submit_action' => 'await_weighing',
         ])->assertRedirect();
 
         $this->assertSame(1, BusinessPartner::where('name', $partner->name)->count());
@@ -139,7 +139,7 @@ class SimpleOfficeWorkflowTest extends TestCase
             'rate_per_ton' => '1310',
             'weighing_at' => '1405/05/19 09:00',
             'first_weight_kg' => '34475',
-            'submit_action' => 'draft',
+            'submit_action' => 'await_weighing',
         ])->assertRedirect();
 
         $sale = Sale::where('reference_number', 'OFFICE-WAIT-001')->with('items.weighingRecord')->firstOrFail();

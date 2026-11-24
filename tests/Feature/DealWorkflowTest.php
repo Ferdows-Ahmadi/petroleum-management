@@ -35,22 +35,23 @@ class DealWorkflowTest extends TestCase
             ->assertDontSee('name="warehouse_id"', false);
     }
 
-    public function test_purchase_sales_officer_can_save_an_incomplete_draft_but_cannot_submit_weight_data(): void
+    public function test_purchase_sales_officer_cannot_save_an_incomplete_draft_or_submit_weight_data(): void
     {
         $user = User::factory()->create(['role' => UserRole::PurchaseSalesOfficer]);
 
         $this->actingAs($user)->post(route('deals.store'), [
             'deal_date' => '1405/06/08',
             'submit_action' => 'draft',
-        ])->assertRedirect();
-        $this->assertDatabaseHas('deals', ['status' => DealStatus::Draft->value]);
+        ])->assertSessionHasErrors('submit_action');
+        $this->assertDatabaseEmpty('deals');
 
         $this->actingAs($user)->post(route('deals.store'), [
             'deal_date' => '1405/06/08',
             'weighing_mode' => 'DIRECT_NET',
             'weighing_at' => '1405/06/08 10:00',
-            'net_weight_kg' => '1000',
-            'submit_action' => 'draft',
+            'net_weight_kg' => '1000', 'product_id' => Product::factory()->create()->id,
+            'source_quantity_kg' => '1000', 'source_rate_per_ton' => '500', 'destination_rate_per_ton' => '600',
+            'supplier_name' => 'Supplier', 'customer_name' => 'Customer', 'submit_action' => 'register',
         ])->assertForbidden();
     }
 
@@ -132,10 +133,12 @@ class DealWorkflowTest extends TestCase
             'weighing_mode' => 'TWO_STAGE',
             'weighing_at' => '1405/06/08 10:00',
             'first_weight_kg' => '34475',
-            'submit_action' => 'draft',
+            'submit_action' => 'register',
         ])->assertRedirect();
         $deal = Deal::query()->firstOrFail();
 
+        $this->assertSame(DealStatus::InProgress, $deal->status);
+        $this->assertDatabaseEmpty('money_movements');
         $this->actingAs($transport)->post(route('deals.weighing.complete', $deal), [
             'second_weight_kg' => '15120',
         ])->assertRedirect(route('deals.show', $deal));

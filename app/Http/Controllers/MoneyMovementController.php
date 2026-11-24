@@ -34,16 +34,14 @@ class MoneyMovementController extends Controller
     {
         $movement = DB::transaction(function () use ($request, $service): MoneyMovement {
             $movement = $service->create($request->validated(), $request->user()->id);
-            if ($request->boolean('confirm_now')) {
-                $service->confirm($movement, $request->user()->id);
-            }
+            $service->confirm($movement, $request->user()->id);
 
             return $movement;
         });
 
         request()->attributes->set('operation_record_location', route('money-movements.show', $movement, false));
 
-        return $this->redirectFor($request, $movement)->with('success', $request->boolean('confirm_now') ? __('finance.money_confirmed') : __('finance.money_draft_saved'));
+        return $this->redirectFor($request, $movement)->with('success', __('finance.money_confirmed'));
     }
 
     public function show(MoneyMovement $moneyMovement): View
