@@ -371,7 +371,7 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function (): void {
         Route::put('/capital-partners/{capitalPartner}', [CapitalPartnerController::class, 'update'])->name('capital-partners.update');
         Route::delete('/capital-partners/{capitalPartner}', [CapitalPartnerController::class, 'destroy'])->name('capital-partners.destroy');
         Route::get('/capital-transactions/create', [CapitalTransactionController::class, 'create'])->name('capital-transactions.create');
-        Route::post('/capital-transactions', [CapitalTransactionController::class, 'store'])->name('capital-transactions.store');
+        Route::post('/capital-transactions', [CapitalTransactionController::class, 'store'])->name('capital-transactions.store')->middleware('once');
         Route::get('/capital-transactions/{capitalTransaction}/edit', [CapitalTransactionController::class, 'edit'])->name('capital-transactions.edit');
         Route::put('/capital-transactions/{capitalTransaction}', [CapitalTransactionController::class, 'update'])->name('capital-transactions.update');
         Route::delete('/capital-transactions/{capitalTransaction}', [CapitalTransactionController::class, 'destroy'])->name('capital-transactions.destroy');

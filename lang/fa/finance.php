@@ -113,7 +113,7 @@ return [
         'OTHER_PAYMENT' => 'پرداخت دیگر',
     ],
     'settlement_states' => ['PENDING' => 'در انتظار تکمیل معامله', 'UNPAID' => 'پرداخت‌نشده', 'PARTIAL' => 'قسمی', 'SETTLED' => 'پرداخت‌شده'],
-    'status' => ['DRAFT' => 'پیش‌نویس', 'CONFIRMED' => 'تأیید شده'],
+    'status' => ['DRAFT' => 'پیش‌نویس', 'PENDING_APPROVAL' => 'در انتظار تأیید', 'CONFIRMED' => 'تأیید شده', 'CANCELLED' => 'پس‌گرفته‌شده'],
     'opening_types' => ['RECEIVABLE' => 'طلب دفتر از طرف', 'PAYABLE' => 'طلب طرف از دفتر'],
     'expense_categories' => [
         'TRANSPORT' => 'ترانسپورت', 'WEIGHING' => 'وزن‌کشی', 'LOADING' => 'بارگیری',
@@ -129,7 +129,7 @@ return [
         'partner_required' => 'برای پرداخت یا دریافت، طرف معامله الزامی است.',
         'account_inactive' => 'حساب مالی انتخاب‌شده فعال نیست.',
         'currency_mismatch' => 'ارز حرکت مالی باید با ارز اصلی حساب مالی یکسان باشد.',
-        'confirmed_immutable' => 'حرکت مالی تأییدشده قابل ویرایش یا حذف نیست.',
+        'confirmed_immutable' => 'این سند مالی قابل ویرایش یا حذف نیست.',
         'account_baseline_locked' => 'پس از ثبت حرکت تأییدشده، ارز و بیلانس افتتاحیه حساب قابل تغییر نیست.',
         'account_in_use' => 'این حساب دارای حرکت مالی است و قابل حذف نیست.',
         'opening_locked' => 'پس از ثبت فعالیت تأییدشده، بیلانس افتتاحیه قابل ویرایش یا حذف نیست.',

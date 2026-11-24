@@ -81,7 +81,7 @@ class CapitalTransactionController extends Controller
     {
         $service->delete($capitalTransaction);
 
-        return redirect()->route('capital-transactions.index')->with('success', __('capital.transaction_deleted'));
+        return redirect()->route('capital-transactions.index')->with('success', __($capitalTransaction->status === CapitalTransactionStatus::Draft ? 'capital.transaction_deleted' : 'common.submission_withdrawn'));
     }
 
     private function form(CapitalTransaction $capitalTransaction): View

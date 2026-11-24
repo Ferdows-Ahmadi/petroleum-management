@@ -34,6 +34,7 @@ class ExpenseRequest extends OperationalEntryRequest
             'payee' => ['nullable', 'string', 'max:150'],
             'reference' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:3000'],
+            'confirm_now' => $this->routeIs('office.finance.expenses.store') ? ['required', 'accepted'] : ['prohibited'],
             'business_partner_id' => ['prohibited'],
             'transaction_type' => ['prohibited'],
         ];

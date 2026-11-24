@@ -12,6 +12,7 @@ use App\Services\CapitalBalanceService;
 use App\Services\CapitalTransactionService;
 use App\Services\FinancialAccountBalanceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\Concerns\CreatesFinanceFixtures;
 use Tests\TestCase;
@@ -20,20 +21,80 @@ class CapitalWorkflowTest extends TestCase
 {
     use CreatesFinanceFixtures, RefreshDatabase;
 
-    public function test_accountant_can_create_partner_and_jalali_draft_transaction(): void
+    public function test_complete_capital_submission_is_locked_until_an_authorized_confirmation_posts_once(): void
     {
         $user = $this->financeUser();
         $account = $this->financeAccount($user);
         $this->actingAs($user)->post(route('capital-partners.store'), ['name' => 'شریک آزمون', 'is_active' => 1])->assertRedirect();
         $partner = CapitalPartner::firstOrFail();
 
-        $this->actingAs($user)->post(route('capital-transactions.store'), $this->payload($partner, $account->id, CapitalTransactionType::InitialCapital, '100', '1405/05/19'))->assertRedirect();
-
-        $transaction = CapitalTransaction::firstOrFail();
+        $data = $this->payload($partner, $account->id, CapitalTransactionType::InitialCapital, '100', '1405/05/19');
+        $data['operation_key'] = (string) Str::uuid();
+        $response = $this->post(route('capital-transactions.store'), $data)->assertSessionHasNoErrors();
+        $transaction = CapitalTransaction::sole();
+        $details = route('capital-transactions.show', $transaction);
+        $response->assertRedirect($details);
+        $this->post(route('capital-transactions.store'), $data)->assertRedirect($details)->assertSessionHas('operation_recovery');
+        $this->assertDatabaseCount('capital_transactions', 1);
         $this->assertSame('2026-08-10', $transaction->transaction_date->toDateString());
-        $this->assertSame(CapitalTransactionStatus::Draft, $transaction->status);
+        $this->assertSame(CapitalTransactionStatus::PendingApproval, $transaction->status);
+        $this->assertSame($user->id, $transaction->created_by);
+        $this->assertNull($transaction->confirmed_by);
+        $this->assertNull($transaction->confirmed_at);
         $this->assertSame('0.00', app(CapitalBalanceService::class)->balanceFor($partner));
-        $this->actingAs($user)->get(route('capital-transactions.show', $transaction))->assertOk()->assertSee('1405/05/19');
+        $this->assertSame('0.00', app(FinancialAccountBalanceService::class)->balanceFor($account));
+        $this->get($details)->assertOk()->assertSee('1405/05/19')->assertSee(route('capital-transactions.confirm', $transaction), false)
+            ->assertDontSee(route('capital-transactions.edit', $transaction), false);
+        $this->put(route('capital-transactions.update', $transaction), array_replace($data, ['amount_usd' => '200']))
+            ->assertSessionHasErrors('status');
+
+        $this->actingAs($this->financeUser(UserRole::SystemAdmin))->post(route('capital-transactions.confirm', $transaction))->assertForbidden();
+        $this->assertSame(CapitalTransactionStatus::PendingApproval, $transaction->refresh()->status);
+
+        $approver = $this->financeUser(UserRole::GeneralManager);
+        $this->actingAs($approver)->post(route('capital-transactions.confirm', $transaction))->assertRedirect();
+        $this->post(route('capital-transactions.confirm', $transaction))->assertRedirect();
+        $this->assertSame($approver->id, $transaction->refresh()->confirmed_by);
+        $this->assertSame(CapitalTransactionStatus::Confirmed, $transaction->status);
+        $this->assertSame('100.00', app(CapitalBalanceService::class)->balanceFor($partner));
+        $this->assertSame('100.00', app(FinancialAccountBalanceService::class)->balanceFor($account));
+    }
+
+    public function test_withdrawn_capital_request_cannot_be_approved_or_recreated_by_a_retry(): void
+    {
+        $user = $this->financeUser();
+        $cash = $this->financeAccount($user, opening: '125');
+        $partner = CapitalPartner::create(['name' => 'Capital approval fixture', 'is_active' => true]);
+        $input = $this->payload($partner, $cash->id, CapitalTransactionType::Withdrawal, '25');
+        $input['operation_key'] = (string) Str::uuid();
+        $this->actingAs($user)->post(route('capital-transactions.store'), $input)->assertSessionHasNoErrors();
+        $record = CapitalTransaction::sole();
+        $this->delete(route('capital-transactions.destroy', $record))->assertSessionHasNoErrors();
+        $this->assertSame(CapitalTransactionStatus::Cancelled, $record->refresh()->status);
+        $this->get(route('capital-transactions.show', $record))->assertDontSee(route('capital-transactions.confirm', $record), false);
+        $this->post(route('capital-transactions.confirm', $record))->assertSessionHasErrors('status');
+        $this->post(route('capital-transactions.store'), $input)->assertSessionHas('operation_recovery');
+        $this->delete(route('capital-transactions.destroy', $record))->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('capital_transactions', 1);
+        $this->assertNull($record->refresh()->confirmed_by);
+        $this->assertSame('25.00', $record->amount_usd);
+        $this->assertSame('125.00', app(FinancialAccountBalanceService::class)->balanceFor($cash));
+        $this->assertSame('0.00', app(CapitalBalanceService::class)->balanceFor($partner));
+    }
+
+    public function test_historical_capital_draft_can_still_be_corrected_or_deleted(): void
+    {
+        $user = $this->financeUser();
+        $cash = $this->financeAccount($user);
+        $partner = CapitalPartner::create(['name' => 'Historic fixture', 'is_active' => true]);
+        $input = $this->payload($partner, $cash->id, CapitalTransactionType::Contribution, '75');
+        $record = CapitalTransaction::create($input + ['status' => CapitalTransactionStatus::Draft, 'created_by' => $user->id]);
+        $this->actingAs($user)->put(route('capital-transactions.update', $record), array_replace($input, ['amount_usd' => '50']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame(CapitalTransactionStatus::Draft, $record->refresh()->status);
+        $this->assertSame('50.00', $record->amount_usd);
+        $this->delete(route('capital-transactions.destroy', $record))->assertSessionHasNoErrors();
+        $this->assertDatabaseMissing('capital_transactions', ['id' => $record->id]);
     }
 
     public function test_confirmed_cash_capital_changes_account_and_partner_balances_once(): void
