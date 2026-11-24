@@ -11,19 +11,19 @@ class ContactImportService
 {
     public function __construct(private readonly ContactImportPlanner $planner) {}
 
-    public function preview(string $source): array
+    public function preview(string $source, bool $includeGeneral = false, ?array $decisions = null): array
     {
-        return $this->report($source);
+        return $this->report($source, $includeGeneral, $decisions);
     }
 
-    public function apply(string $source, string $fingerprint): array
+    public function apply(string $source, string $fingerprint, bool $includeGeneral = false, ?array $decisions = null): array
     {
-        return DB::transaction(function () use ($source, $fingerprint): array {
+        return DB::transaction(function () use ($source, $fingerprint, $includeGeneral, $decisions): array {
             // Serialize with other imports and the inline contact creator, including absent names.
             if (! DB::table('operation_locks')->where('name', 'inline-party')->lockForUpdate()->first()) {
                 throw new RuntimeException('The contact creation lock is missing.');
             }
-            $report = $this->report($source);
+            $report = $this->report($source, $includeGeneral, $decisions);
             if (! hash_equals($report['fingerprint'], $fingerprint)) {
                 throw new InvalidArgumentException('The preview no longer matches. Run a new preview and review it before applying.');
             }
@@ -41,11 +41,11 @@ class ContactImportService
         }, 3);
     }
 
-    private function report(string $source): array
+    private function report(string $source, bool $includeGeneral, ?array $decisions): array
     {
         $partners = BusinessPartner::withTrashed()->select('id', 'name', 'is_active', 'deleted_at')
             ->with('roles:id,business_partner_id,role')->orderBy('id')->get()->keyBy('id');
-        $groups = $this->planner->plan($source, $partners);
+        $groups = $this->planner->plan($source, $partners, $includeGeneral, $decisions);
         $candidates = [];
         $counts = ['source_rows' => 0, 'groups' => count($groups), 'create' => 0, 'reuse' => 0, 'review' => 0];
         foreach ($groups as $group) {
@@ -62,8 +62,15 @@ class ContactImportService
         }
         $db = DB::connection();
         $target = [$db->getDriverName(), $db->getConfig('host'), $db->getConfig('port'), $db->getDatabaseName(), $db->getTablePrefix()];
-        $fingerprint = hash('sha256', json_encode([$target, hash('sha256', $source), $groups, $candidates], JSON_THROW_ON_ERROR));
+        $approval = [$target, hash('sha256', $source), $groups, $candidates];
+        if ($includeGeneral) {
+            $approval[] = 'include-general';
+        }
+        if ($decisions !== null) {
+            $approval[] = $decisions;
+        }
+        $fingerprint = hash('sha256', json_encode($approval, JSON_THROW_ON_ERROR));
 
-        return ['mode' => 'preview', 'fingerprint' => $fingerprint, 'counts' => $counts, 'groups' => $groups, 'candidates' => $candidates];
+        return ['mode' => 'preview', 'include_general' => $includeGeneral, 'fingerprint' => $fingerprint, 'counts' => $counts, 'groups' => $groups, 'candidates' => $candidates];
     }
 }

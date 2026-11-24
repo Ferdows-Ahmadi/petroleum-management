@@ -68,4 +68,36 @@ class ContactImportCommandTest extends TestCase
             unlink($path);
         }
     }
+
+    public function test_general_contact_approval_is_bound_to_the_explicit_mode_and_retains_conflicts(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'contact-test-');
+        try {
+            file_put_contents($path, "PARTNER | باغ نمایشی سپیدار\nPARTNER | باغ نمایشی سپیدار\nPARTNER | قصر خیالی ارغوان\nSARAF | قصر خیالی ارغوان");
+            $args = ['source' => $path, '--json' => true];
+            $this->assertSame(0, Artisan::call('contacts:import', $args));
+            $strict = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+            $this->assertSame(2, $strict['counts']['review']);
+
+            $general = $args + ['--include-general' => true];
+            $this->assertSame(0, Artisan::call('contacts:import', $general));
+            $preview = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+            $this->assertTrue($preview['include_general']);
+            $this->assertSame(['source_rows' => 4, 'groups' => 2, 'create' => 1, 'reuse' => 0, 'review' => 1], $preview['counts']);
+            $this->assertSame([1, 2], $preview['groups'][0]['lines']);
+            $this->assertContains('conflicting_source_roles', $preview['groups'][1]['reasons']);
+            $this->assertSame(1, Artisan::call('contacts:import', $general + ['--apply' => $strict['fingerprint']]));
+            $this->assertSame(1, Artisan::call('contacts:import', $args + ['--apply' => $preview['fingerprint']]));
+            $this->assertDatabaseEmpty('business_partners');
+
+            $this->assertSame(0, Artisan::call('contacts:import', $general + ['--apply' => $preview['fingerprint']]));
+            $partner = BusinessPartner::sole();
+            $this->assertSame('باغ نمایشی سپیدار', $partner->name);
+            $this->assertSame(PartnerRole::Partner, $partner->roles()->sole()->role);
+            $this->assertDatabaseEmpty('partner_opening_balances');
+            $this->assertDatabaseEmpty('financial_transactions');
+        } finally {
+            unlink($path);
+        }
+    }
 }

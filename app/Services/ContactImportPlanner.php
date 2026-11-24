@@ -17,7 +17,7 @@ class ContactImportPlanner
      * @param  iterable<BusinessPartner>  $partners  Include inactive and soft-deleted contacts, with roles loaded.
      * @return list<array{name:string,lines:list<int>,categories:list<string>,action:string,role:?string,partner_id:?int,reasons:list<string>,candidate_ids:list<int>,candidate_lines:list<int>}>
      */
-    public function plan(string $source, iterable $partners): array
+    public function plan(string $source, iterable $partners, bool $includeGeneral = false, ?array $decisions = null): array
     {
         $groups = $this->parse($source);
 
@@ -37,28 +37,47 @@ class ContactImportPlanner
             }
         }
 
+        $sourceGroups = $groups;
+        $similar = [];
+        foreach ($keysByName as $name => $keys) {
+            $similar[$name] = $this->candidates($keys, $sourceIndex);
+        }
+        $distinct = [];
+        if ($decisions !== null) {
+            [$groups, $distinct] = (new ContactImportDecisions)->resolve($source, $groups, $decisions, $similar);
+        }
         $plan = [];
         foreach ($groups as $name => $group) {
             $categories = $group['categories'];
-            $role = count($categories) === 1 && $categories[0] !== PartnerRole::Partner->value ? $categories[0] : null;
+            $reviewedCategories = isset($group['approved_role']) ? [$group['approved_role']] : $categories;
+            $role = count($reviewedCategories) === 1 ? $reviewedCategories[0] : null;
             $reasons = [];
-            if (in_array(PartnerRole::Partner->value, $categories, true)) {
+            if (! $includeGeneral && in_array(PartnerRole::Partner->value, $reviewedCategories, true)) {
+                $role = null;
                 $reasons[] = 'uncategorized';
             }
-            if (count($categories) > 1) {
+            if (count($reviewedCategories) > 1) {
                 $reasons[] = 'conflicting_source_roles';
             }
             $candidateLines = [];
-            foreach ($this->candidates($keysByName[$name], $sourceIndex) as $similarName) {
-                if ($similarName !== $name) {
-                    array_push($candidateLines, ...$groups[$similarName]['lines']);
+            $members = $group['members'] ?? [$name];
+            $candidates = [];
+            foreach ($members as $member) {
+                foreach (array_diff($similar[$member], $members, $distinct[$member] ?? []) as $similarName) {
+                    array_push($candidateLines, ...$sourceGroups[$similarName]['lines']);
+                }
+                foreach ($matches[$member] ?? [] as $partner) {
+                    if (! in_array($partner->name, $distinct[$member] ?? [], true)) {
+                        $candidates[$partner->id] = $partner;
+                    }
                 }
             }
+            $candidateLines = array_values(array_unique($candidateLines));
             if ($candidateLines) {
                 $reasons[] = 'possible_source_alias';
             }
 
-            $candidates = $matches[$name] ?? [];
+            $candidates = array_values($candidates);
             $exact = array_values(array_filter($candidates, fn ($p) => $p->name === $name));
             if (count($candidates) > count($exact)) {
                 $reasons[] = 'possible_existing_alias';
@@ -79,13 +98,18 @@ class ContactImportPlanner
             sort($candidateIds, SORT_NUMERIC);
             sort($candidateLines, SORT_NUMERIC);
             $action = $reasons ? 'review' : ($exact ? 'reuse' : 'create');
-            $plan[] = [
+            $entry = [
                 'name' => $name, 'lines' => $group['lines'], 'categories' => $categories,
                 'action' => $action, 'role' => $role,
                 'partner_id' => $action === 'reuse' ? (int) $exact[0]->getKey() : null,
                 'reasons' => array_values(array_unique($reasons)),
                 'candidate_ids' => $candidateIds, 'candidate_lines' => $candidateLines,
             ];
+            if (isset($group['decision'])) {
+                $entry['decision'] = $group['decision'];
+                $entry['source_entries'] = $group['source_entries'];
+            }
+            $plan[] = $entry;
         }
 
         return $plan;
@@ -121,8 +145,9 @@ class ContactImportPlanner
             if (! preg_match('/\p{L}/u', $name) || mb_strlen($name) > 150 || preg_match('/[\p{C}\p{Zl}\p{Zp}]/u', $visible)) {
                 throw new InvalidArgumentException("Line {$lineNumber}: expected a name containing letters, up to 150 characters, without controls.");
             }
-            $groups[$name] ??= ['lines' => [], 'categories' => []];
+            $groups[$name] ??= ['lines' => [], 'categories' => [], 'source_entries' => []];
             $groups[$name]['lines'][] = $lineNumber;
+            $groups[$name]['source_entries'][] = ['line' => $lineNumber, 'category' => $category, 'name' => $name];
             if (! in_array($category, $groups[$name]['categories'], true)) {
                 $groups[$name]['categories'][] = $category;
             }
