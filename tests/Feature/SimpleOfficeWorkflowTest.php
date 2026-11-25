@@ -269,7 +269,7 @@ class SimpleOfficeWorkflowTest extends TestCase
             route('office.accounts') => __('navigation.accounts'),
             route('finance.journal') => __('navigation.journal'),
             route('office.storage') => __('navigation.storage'),
-            route('reports.index') => __('reports.title'),
+            route('reports.purchases') => __('reports.purchases'),
             route('office.configuration') => __('navigation.settings'),
         ] as $url => $label) {
             $this->actingAs($manager)->get($url)->assertOk()->assertSee($label);

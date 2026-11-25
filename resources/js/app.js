@@ -1,5 +1,4 @@
 import { bindOfficeMenu } from './office-menu.js';
-import { bindFuelShortcuts } from './fuel-shortcuts.js';
 import { tradeCents, tradePreviewCents, formatCents, netWeight, scaled, formatWeight } from './decimal.js';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import { preventImplicitEntrySubmit } from './entry-keyboard.js';
@@ -199,7 +198,6 @@ document.querySelectorAll('[data-office-purchase-form]').forEach((form) => {
 document.querySelectorAll('[data-deal-form]').forEach((form) => {
     const sourceType = form.elements.namedItem('source_type');
     const destinationType = form.elements.namedItem('destination_type');
-    bindFuelShortcuts(form);
     const reveal = (side, type) => {
         const stored = type?.value === 'STORAGE';
         form.querySelectorAll('[data-simple-' + side + '-party], [data-simple-' + side + '-rate]').forEach((group) => {

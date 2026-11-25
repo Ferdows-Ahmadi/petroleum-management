@@ -86,7 +86,9 @@ button, a, input, select, textarea, summary { outline-color: var(--primary); }
 .toolbar, .filters { display: flex; align-items: end; flex-wrap: wrap; gap: 9px; margin: 0; }
 .toolbar-panel { margin-bottom: 14px; padding: 12px; }
 .field { min-width: 0; }
-.field label, .field > span:first-child { display: block; margin-bottom: 5px; color: #35464e; font-size: 12px; font-weight: 650; }
+.field label, .field > span:first-child { display: block; margin-bottom: 5px; color: #35464e; font-size: 14px; font-weight: 550; line-height: 1.7; }
+label:has(> input[type="checkbox"]) { display: inline-flex; align-items: baseline; column-gap: .6rem; cursor: pointer; }
+label > input[type="checkbox"] { flex: none; accent-color: var(--primary); }
 .control { width: 100%; min-height: 42px; padding: 8px 10px; color: var(--ink); background: #fff; border: 1px solid #ced9dd; border-radius: 7px; }
 .control:hover { border-color: #aebfc4; }
 .control:focus { outline: 3px solid rgba(11,95,89,.13); border-color: var(--primary); }
@@ -158,6 +160,7 @@ button, a, input, select, textarea, summary { outline-color: var(--primary); }
     #deal-ledger, #account-ledger-heading { scroll-margin-block-start: calc(var(--topbar) + 12px); }
 }
 .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; font-size: 12px; line-height: 1.25; font-weight: 700; }
+.main .badge { padding-block: 3px; font-size: 13px; line-height: 1.6; font-weight: 550; }
 .badge-green { color: #236f4e; background: var(--success-soft); }
 .badge-red { color: #a63d3d; background: var(--danger-soft); }
 .badge-blue { color: var(--primary); background: var(--primary-soft); }
@@ -218,7 +221,6 @@ button, a, input, select, textarea, summary { outline-color: var(--primary); }
 .account-contact { margin-top: 8px; color: var(--muted); }
 .account-inline-edit { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
 .inline-role-editor { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 18px; margin: 12px 0; }
-.inline-role-editor label { display: inline-flex; align-items: center; gap: 6px; }
 .office-history, .office-money-actions, .storage-kpis { margin-top: 15px; }
 .money-action-grid { display: flex; gap: 9px; margin-top: 11px; }
 .money-action-grid details { flex: 1; }
@@ -248,14 +250,14 @@ button, a, input, select, textarea, summary { outline-color: var(--primary); }
 .password-control { position: relative; }
 .password-control .control { padding-left: 44px; }
 .password-toggle { position: absolute; top: 3px; left: 3px; width: 36px; height: 36px; display: grid; place-items: center; color: var(--muted); background: transparent; border: 0; border-radius: 5px; cursor: pointer; }
-.remember-row { display: flex; align-items: center; gap: 7px; margin-top: 13px; color: #42535b; font-size: 12px; }
+.remember-row { margin-top: 13px; color: #42535b; font-size: 14px; }
 .login-submit { width: 100%; margin-top: 20px; }
 .configuration-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
 .configuration-link, .quick-link { display: flex; align-items: center; gap: 12px; padding: 16px; }
 .configuration-link > i, .quick-link > i { color: var(--primary); font-size: 20px; }
 .quick-actions { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
 .role-options { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
-.role-option { display: inline-flex !important; align-items: center; gap: 6px; margin: 0 !important; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; cursor: pointer; }
+.role-option { margin: 0 !important; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; }
 .paginationx { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; }
 .page-linkx, .page-current { padding: 6px 10px; background: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
 .page-linkx.disabled { opacity: .45; }
@@ -299,8 +301,9 @@ button, a, input, select, textarea, summary { outline-color: var(--primary); }
     .head-actions .btnx { flex: 1; }
     .topbar { gap: 5px; padding-inline: 10px; }
     .brand-sub { display: none; }
-    .top-actions { gap: 4px; }
-    .profile-meta { max-width: 70px; }
+    .top-actions, .top-actions .profile { min-inline-size: 0; gap: 4px; }
+    .topbar .mobile-menu, .top-actions > .badge, .top-actions > form, .top-actions .avatar { flex-shrink: 0; }
+    .profile-meta { min-inline-size: 0; max-width: 70px; }
     .profile-name, .profile-role { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .top-actions > .badge { font-size: 12px; }
     .brand-title { font-size: 19px; }
@@ -325,6 +328,9 @@ button, a, input, select, textarea, summary { outline-color: var(--primary); }
     .login-logo { margin-bottom: 18px; }
     .login-logo img { width: 128px; }
 }
+@media (max-width: 374px) {
+    .top-actions .avatar { display: none; }
+}
 @media print {
     .topbar, .no-print, .filters, .toolbar-panel, .head-actions, .paginationx, button, .btnx { display: none !important; }
     @page { size: auto; margin: 14mm; }
@@ -340,15 +346,14 @@ button, a, input, select, textarea, summary { outline-color: var(--primary); }
 }
 .print-header { display: none; }
 
-.fuel-shortcuts { display: flex; flex-wrap: wrap; gap: 6px; margin-block-end: 6px; }
-.fuel-shortcuts [aria-pressed="true"] { color: white; background: var(--primary); border-color: var(--primary); }
 .deal-notes { grid-column: 1 / -1; }
 .deal-notes textarea { resize: vertical; min-height: 3.5rem; }
 .deal-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .deal-route { margin: 12px 0 0; padding: 0; border: 0; min-width: 0; }
-.deal-route legend { font-size: 12px; font-weight: 650; }
+.deal-route legend { font-size: 14px; font-weight: 550; }
 .deal-route label { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; margin-inline-end: 12px; cursor: pointer; }
 .deal-route input { accent-color: var(--primary); }
+.partial-delivery { margin-block: .6rem; }
 
 .payment-overview, .payment-history, .payment-side, .payment-event > div { min-width: 0; }
 .payment-sides { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-block: 12px; }
@@ -363,4 +368,4 @@ button, a, input, select, textarea, summary { outline-color: var(--primary); }
 #money-entry { scroll-margin-top: calc(var(--topbar) + 12px); }
 @media (max-width: 700px) { .payment-sides { grid-template-columns: 1fr; } }
 
-.notice strong + span, .alertx strong + span, .notice strong + p { display: block; margin-block: .2em 0; }
+.notice strong + span, .alertx strong + span, .notice strong + p { display: block; margin-block: .35em 0; }

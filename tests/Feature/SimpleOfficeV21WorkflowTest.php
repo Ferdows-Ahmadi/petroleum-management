@@ -250,7 +250,7 @@ class SimpleOfficeV21WorkflowTest extends TestCase
             ->assertDontSee(__('office.form_then_history'));
         $this->actingAs($manager)->get(route('dashboard'))->assertOk()->assertDontSee(__('dashboard.notice_title'));
         $this->actingAs($manager)->get(route('office.storage'))->assertOk()->assertDontSee(__('inventory.workspace_notice'))->assertSee(__('inventory.all_products'));
-        $this->actingAs($manager)->get(route('reports.index'))->assertOk()->assertDontSee(__('reports.open_report'));
+        $this->actingAs($manager)->get(route('reports.index'))->assertRedirect(route('reports.purchases'));
         $this->actingAs($manager)->get(route('reports.sales'))->assertOk()->assertSee(__('reports.all_products'))->assertSee(__('reports.all_statuses'));
         $this->post(route('logout'));
         $this->get(route('login'))->assertOk()->assertSee('favicon-32x32.png', false)->assertSee('apple-touch-icon.png', false)->assertDontSee(__('common.search_placeholder'));

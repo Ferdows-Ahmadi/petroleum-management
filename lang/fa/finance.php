@@ -113,7 +113,7 @@ return [
         'OTHER_PAYMENT' => 'پرداخت دیگر',
     ],
     'settlement_states' => ['PENDING' => 'در انتظار تکمیل معامله', 'UNPAID' => 'پرداخت‌نشده', 'PARTIAL' => 'قسمی', 'SETTLED' => 'پرداخت‌شده'],
-    'status' => ['DRAFT' => 'پیش‌نویس', 'PENDING_APPROVAL' => 'در انتظار تأیید', 'CONFIRMED' => 'تأیید شده', 'CANCELLED' => 'پس‌گرفته‌شده'],
+    'status' => ['DRAFT' => 'پیش‌نویس', 'PENDING_APPROVAL' => 'در انتظار تأیید', 'CONFIRMED' => 'تأییدشده', 'CANCELLED' => 'پس‌گرفته‌شده'],
     'opening_types' => ['RECEIVABLE' => 'طلب دفتر از طرف', 'PAYABLE' => 'طلب طرف از دفتر'],
     'expense_categories' => [
         'TRANSPORT' => 'ترانسپورت', 'WEIGHING' => 'وزن‌کشی', 'LOADING' => 'بارگیری',

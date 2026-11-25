@@ -22,15 +22,18 @@ use App\Models\WeighingRecord;
 use App\Services\CapitalBalanceService;
 use App\Services\DealTradeReportService;
 use App\Services\InventoryValuationService;
+use App\Support\ReportNavigation;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class ReportController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): RedirectResponse
     {
-        return view('reports.index');
+        return redirect()->route(ReportNavigation::defaultRoute($request->user()), $request->query());
     }
 
     public function purchases(ReportFilterRequest $request): View

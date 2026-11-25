@@ -52,6 +52,23 @@ class DariWorkspaceTest extends TestCase
         $this->assertDatabaseCount('deals', 0);
     }
 
+    public function test_partial_delivery_caption_and_supplier_label_preserve_dari_word_boundaries(): void
+    {
+        Product::factory()->create();
+        $manager = User::factory()->create(['role' => UserRole::GeneralManager]);
+        $html = $this->actingAs($manager)->withSession(['_old_input' => ['partial_delivery' => '1']])
+            ->get(route('deals.index'))->assertOk()->getContent();
+        $form = HTMLDocument::createFromString($html, LIBXML_NOERROR)->querySelector('#new-deal');
+        $supplier = $form->querySelector('label[for="supplier_id_query"]');
+        $this->assertSame('عرضه‌کننده', $supplier->textContent);
+        $this->assertNotNull($form->querySelector('#supplier_id_query[role="combobox"]'));
+
+        $checkbox = $form->querySelector('input[type="checkbox"][name="partial_delivery"]');
+        $this->assertTrue($checkbox->hasAttribute('checked'));
+        $this->assertSame('label', $checkbox->parentElement->localName);
+        $this->assertSame('تحویل قسمی؛ باقی‌مانده بعداً تحویل می‌شود.', $checkbox->nextElementSibling->textContent);
+    }
+
     public function test_filter_password_and_route_errors_use_employee_labels(): void
     {
         $errors = Validator::make(['saraf_id' => 1, 'counterparty_id' => 1, 'password' => 'a', 'page' => 0],

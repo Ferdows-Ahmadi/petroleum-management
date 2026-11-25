@@ -110,7 +110,7 @@ class PhaseFiveUxWorkflowTest extends TestCase
         $this->actingAs($manager)->get(route('office.accounts', ['role' => PartnerRole::Customer->value]))
             ->assertOk()->assertSee($customer->name)->assertDontSee($supplier->name)->assertSee('صراف‌ها')->assertSee('سرمایه');
 
-        $this->actingAs($manager)->get(route('reports.index'))
+        $this->actingAs($manager)->get(route('reports.purchases'))
             ->assertOk()->assertSee('خرید')->assertSee('فروش')->assertSee('تصفیه')->assertSee('مصارف');
 
         $this->actingAs($manager)->get(route('office.configuration'))

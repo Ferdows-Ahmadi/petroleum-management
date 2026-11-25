@@ -18,7 +18,7 @@ class NavigationTest extends TestCase
         $this->actingAs($transport)->get(route('dashboard'))
             ->assertOk()
             ->assertSee(route('office.transactions'), false)
-            ->assertSee(route('reports.index'), false)
+            ->assertSee(route('reports.weighings'), false)
             ->assertDontSee(route('office.accounts'), false)
             ->assertDontSee(route('office.storage'), false)
             ->assertDontSee(route('office.finance'), false)
@@ -46,7 +46,8 @@ class NavigationTest extends TestCase
     {
         foreach (UserRole::cases() as $role) {
             $response = $this->actingAs(User::factory()->create(['role' => $role]))->get(route('dashboard'))->assertOk();
-            $response->assertSee(route('office.transactions'), false)->assertSee(route('reports.index'), false);
+            $defaultReport = $role === UserRole::TransportOfficer ? 'reports.weighings' : 'reports.purchases';
+            $response->assertSee(route('office.transactions'), false)->assertSee(route($defaultReport), false);
 
             if (in_array($role, [UserRole::GeneralManager, UserRole::SystemAdmin, UserRole::Accountant, UserRole::PurchaseSalesOfficer], true)) {
                 $response->assertSee(route('office.accounts'), false);

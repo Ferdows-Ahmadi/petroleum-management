@@ -2,7 +2,6 @@
     $editingDeal = $editingDeal ?? null;
     $draftSource = $editingDeal?->sources->first();
     $draftDestination = $editingDeal?->destinations->first();
-    $quickProducts = $products->filter(fn ($product) => $product->isQuickFuel());
     $draftWeighing = $draftDestination?->weighingRecord;
 @endphp
         <form id="new-deal" method="POST" enctype="multipart/form-data" action="{{ $editingDeal ? route('deals.update', $editingDeal) : route('deals.store') }}" data-deal-form data-mode-scope>
@@ -16,13 +15,6 @@
                             <div class="field"><label for="deal_date">تاریخ معامله (هجری شمسی)</label><input id="deal_date" class="control ltr-value" name="deal_date" value="{{ old('deal_date', $editingDeal ? app(\App\Support\JalaliDate::class)->format($editingDeal->deal_date) : app(\App\Support\JalaliDate::class)->format(now())) }}" required><x-field-error name="deal_date" /></div>
                             <div class="field">
                                 <label for="product_id">{{ __('trades.product') }}</label>
-                                @if($quickProducts->isNotEmpty())
-                                    <div class="fuel-shortcuts" role="group" aria-label="انتخاب سریع محصول" data-fuel-shortcuts hidden>
-                                        @foreach($quickProducts as $fuel)
-                                            <button class="btnx btn-lightx" type="button" data-quick-product="{{ $fuel->id }}" aria-pressed="false">{{ $fuel->name }}</button>
-                                        @endforeach
-                                    </div>
-                                @endif
                                 <select id="product_id" class="control" name="product_id">
                                     <option value="">—</option>
                                     @foreach($products as $product)
@@ -65,7 +57,10 @@
                             <div data-simple-destination-party><x-party-combobox name="customer_id" :label="__('deals.customer')" role="CUSTOMER" :parties="$parties" :selected-id="old('customer_id', $draftDestination?->customer_id)" :required="false" /></div>
                             <div class="field" data-simple-destination-warehouse hidden><label for="destination_warehouse_id">ذخیره دریافت</label><select id="destination_warehouse_id" class="control" name="destination_warehouse_id"><option value="">—</option>@foreach($warehouses as $warehouse)<option value="{{ $warehouse->id }}" @selected((string) old('destination_warehouse_id', $draftDestination?->warehouse_id) === (string) $warehouse->id)>{{ $warehouse->name }}</option>@endforeach</select><x-field-error name="destination_warehouse_id" /><div class="field-hint">اگر مقدار تحویل خالی باشد، مقدار دریافت استفاده می‌شود. تا تأیید تصفیه، موجودی ذخیره تغییر نمی‌کند.</div>@if($warehouses->isEmpty())<div class="field-hint">از مدیر بخواهید ذخیره واقعی شرکت را ثبت کند.</div>@endif</div>
                             <div class="field"><label for="final_quantity_kg">مقدار تحویل (کیلوگرام)</label><input id="final_quantity_kg" class="control ltr-value" name="final_quantity_kg" value="{{ old('final_quantity_kg', $draftDestination?->final_quantity_kg) }}" inputmode="decimal" data-deal-final-quantity><x-field-error name="final_quantity_kg" /></div>
-                            <label><input type="checkbox" name="partial_delivery" value="1" @checked(old('partial_delivery'))> تحویل قسمی؛ باقی‌مانده بعداً تحویل می‌شود.</label>
+                            <label class="partial-delivery">
+                                <input type="checkbox" name="partial_delivery" value="1" @checked(old('partial_delivery'))>
+                                <span>تحویل قسمی؛ باقی‌مانده بعداً تحویل می‌شود.</span>
+                            </label>
                             <x-field-error name="partial_delivery" />
                             <div class="field" data-simple-destination-rate><label for="destination_rate_per_ton">{{ __('deals.destination_rate') }} (دالر)</label><input id="destination_rate_per_ton" class="control ltr-value" name="destination_rate_per_ton" value="{{ old('destination_rate_per_ton', $draftDestination?->rate_per_ton) }}" inputmode="decimal" data-deal-destination-rate><x-field-error name="destination_rate_per_ton" /></div>
                         </section>

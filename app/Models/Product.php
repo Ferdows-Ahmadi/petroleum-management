@@ -20,12 +20,6 @@ class Product extends Model
         return ['is_active' => 'boolean'];
     }
 
-    public function isQuickFuel(): bool
-    {
-        return in_array(strtoupper(trim((string) $this->code)), ['DSL', 'PTR'], true)
-            || self::fuelCodeForName($this->name) !== null;
-    }
-
     public static function fuelCodeForName(string $name): ?string
     {
         return match (str_replace('ي', 'ی', mb_strtolower(trim($name)))) {

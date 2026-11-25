@@ -16,7 +16,7 @@
     @if($canStorage)
         <a class="nav-linkx" href="{{ route('office.storage') }}" @if(request()->routeIs('office.storage', 'inventory.*')) aria-current="page" @endif>{{ __('navigation.storage') }}</a>
     @endif
-    <a class="nav-linkx" href="{{ route('reports.index') }}" @if(request()->routeIs('reports.*')) aria-current="page" @endif>{{ __('navigation.reports') }}</a>
+    <a class="nav-linkx" href="{{ route(\App\Support\ReportNavigation::defaultRoute($user)) }}" @if(request()->routeIs('reports.*')) aria-current="page" @endif>{{ __('navigation.reports') }}</a>
     @if($canConfigure)
         <a class="nav-linkx" href="{{ route('office.configuration') }}" @if(request()->routeIs('office.configuration', 'users.*', 'products.*', 'warehouses.*', 'contracts.*', 'financial-accounts.*', 'capital-*')) aria-current="page" @endif>{{ __('navigation.settings') }}</a>
     @endif
