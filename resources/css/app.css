@@ -301,8 +301,9 @@ label > input[type="checkbox"] { flex: none; accent-color: var(--primary); }
     .head-actions .btnx { flex: 1; }
     .topbar { gap: 5px; padding-inline: 10px; }
     .brand-sub { display: none; }
-    .top-actions { gap: 4px; }
-    .profile-meta { max-width: 70px; }
+    .top-actions, .top-actions .profile { min-inline-size: 0; gap: 4px; }
+    .topbar .mobile-menu, .top-actions > .badge, .top-actions > form, .top-actions .avatar { flex-shrink: 0; }
+    .profile-meta { min-inline-size: 0; max-width: 70px; }
     .profile-name, .profile-role { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .top-actions > .badge { font-size: 12px; }
     .brand-title { font-size: 19px; }
@@ -326,6 +327,9 @@ label > input[type="checkbox"] { flex: none; accent-color: var(--primary); }
     .login-panel { padding: 25px 20px 34px; }
     .login-logo { margin-bottom: 18px; }
     .login-logo img { width: 128px; }
+}
+@media (max-width: 374px) {
+    .top-actions .avatar { display: none; }
 }
 @media print {
     .topbar, .no-print, .filters, .toolbar-panel, .head-actions, .paginationx, button, .btnx { display: none !important; }
